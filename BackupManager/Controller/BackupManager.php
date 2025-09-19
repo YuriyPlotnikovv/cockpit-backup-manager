@@ -1,34 +1,47 @@
 <?php
 
 namespace BackupManager\Controller;
+
 use App\Controller\Base;
 
-class BackupManager extends Base {
+class BackupManager extends Base
+{
 
     protected $layout = 'app:layouts/app.php';
 
-    public function before() {
+    public function before()
+    {
         if (!$this->helper('acl')->hasPermission('backupmanager/manage')) {
             $this->stop(401);
         }
     }
 
-    public function index() {
+    public function index()
+    {
         return $this->render('backupmanager:views/index.php', [
-            'config' => $this->module('backupmanager')->config(),
-            'backups' => $this->module('backupmanager')->getBackups()
+            'backups' => $this->module('backupmanager')->getBackups(),
+            'settings' => $this->module('backupmanager')->getSettings(),
         ]);
     }
 
-    public function save() {
+    public function settings()
+    {
+        return $this->render('backupmanager:views/settings.php', [
+            'settings' => $this->module('backupmanager')->getSettings(),
+        ]);
+    }
+
+    public function save()
+    {
         $data = $this->app->request->body;
 
-        $this->app->storage->setKey('backupmanager', $data);
+        $this->app->dataStorage->setKey('backupmanager', 'settings', $data);
 
         return ['success' => true];
     }
 
-    public function create() {
+    public function create()
+    {
         try {
             $this->module('backupmanager')->create();
             return ['success' => true, 'message' => 'Резервная копия успешно создана.'];
@@ -37,7 +50,8 @@ class BackupManager extends Base {
         }
     }
 
-    public function restore() {
+    public function restore()
+    {
         $filename = $this->param('file', null);
 
         if (!$filename) {
@@ -48,11 +62,12 @@ class BackupManager extends Base {
             $this->module('backupmanager')->restore($filename);
             return ['success' => true, 'message' => 'Система успешно восстановлена из резервной копии.'];
         } catch (\Exception $e) {
-            return $this->stop(['error' => 'Ошибка восстановления: '.$e->getMessage()], 500);
+            return $this->stop(['error' => 'Ошибка восстановления: ' . $e->getMessage()], 500);
         }
     }
 
-    public function delete() {
+    public function delete()
+    {
         $filename = $this->param('file', null);
         $backupDir = $this->module('backupmanager')->getBackupDir();
         $file = $backupDir . '/' . basename($filename);
@@ -65,15 +80,28 @@ class BackupManager extends Base {
         return ['success' => true, 'message' => 'Резервная копия удалена.'];
     }
 
-    public function download() {
+    public function download()
+    {
         $filename = $this->param('file', null);
-        $backupDir = $this->module('backupmanager')->getBackupDir();
+        $backupDir = $this->module('backupmanager')->getBackupDir(false);
         $file = $backupDir . '/' . basename($filename);
 
         if (!$filename || !file_exists($file)) {
-            $this->stop(404);
+            return $this->stop(404);
         }
 
-        $this->app->response->file($file);
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+
+        ob_clean();
+        flush();
+        readfile($file);
+
+        exit;
     }
 }

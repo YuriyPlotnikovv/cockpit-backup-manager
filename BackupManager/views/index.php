@@ -1,19 +1,20 @@
 <?php
-$this->layout = 'app:layouts/app.php';
 $config = $this->module('backupmanager')->config();
 ?>
 
 <kiss-container class="kiss-margin-small" size="medium">
 
     <ul class="kiss-breadcrumbs">
-        <li><a href="<?=$this->route('/system')?>"><?=t('Settings')?></a></li>
+        <li><a href="<?= $this->route('/system') ?>"><?= t('Settings') ?></a></li>
     </ul>
 
     <vue-view>
         <template>
             <div class="kiss-margin-large-bottom kiss-size-3 kiss-text-bold">
-                <?=t('Backup')?>
+                <?= t('Backup Manager') ?>
             </div>
+
+            <?= $this->render('backupmanager:views/partials/menu.php') ?>
 
             <div v-if="state.view === 'list'">
                 <div class="app-main">
@@ -23,8 +24,11 @@ $config = $this->module('backupmanager')->config();
                                 <div class="app-panel-box">
                                     <div class="app-alert">
                                         <p>
-                                            <strong>Внимание!</strong> Создается полная резервная копия всего проекта, включая все файлы и директорию <code>/cockpit</code>.
+                                            <strong>Внимание!</strong> В бекап будут включены:
                                         </p>
+                                        <ul>
+                                            <li v-for="item in activePaths"><code>{{ item.name }}</code></li>
+                                        </ul>
                                         <p class="u-margin-top-small">
                                             Следующие директории и файлы будут исключены из архива:
                                         </p>
@@ -33,41 +37,46 @@ $config = $this->module('backupmanager')->config();
                                         </ul>
                                     </div>
 
-                                    <div v-if="!backups.length" class="app-panel-box-empty">
-                                        <div class="fs-xl">🤷</div>
-                                        <p class="fs-l">Резервные копии не найдены</p>
-                                    </div>
+                                    <table class="cp-table">
+                                        <thead>
+                                        <tr>
+                                            <th>Имя файла</th>
+                                            <th>Размер</th>
+                                            <th>Дата создания</th>
+                                            <th width="150"></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr v-if="!backups.length">
+                                            <td class="kiss-padding-larger kiss-size-3 kiss-align-center kiss-color-muted"
+                                                colspan="4">Резервные копии не найдены
+                                            </td>
+                                        </tr>
 
-                                    <div v-if="backups.length">
-                                        <table class="cp-table">
-                                            <thead>
-                                            <tr>
-                                                <th>Имя файла</th>
-                                                <th>Размер</th>
-                                                <th>Дата создания</th>
-                                                <th width="150"></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            <tr v-for="backup in backups">
-                                                <td>{{ backup.name }}</td>
-                                                <td>{{ formatSize(backup.size) }}</td>
-                                                <td>{{ formatDate(backup.created) }}</td>
-                                                <td class="cp-table-actions">
-                                                    <a class="kiss-size-1" :href="$baseUrl('/backupmanager/download?file='+backup.name)" title="Скачать">
-                                                        <icon>download</icon>
-                                                    </a>
-                                                    <a class="kiss-size-1" href="#" @click.prevent="restoreBackup(backup.name)" title="Восстановить">
-                                                        <icon>history</icon>
-                                                    </a>
-                                                    <a class="kiss-size-1" href="#" @click.prevent="deleteBackup(backup.name)" title="Удалить">
-                                                        <icon>delete</icon>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                        <tr v-if="backups.length" v-for="backup in backups">
+                                            <td>{{ backup.name }}</td>
+                                            <td>{{ formatSize(backup.size) }}</td>
+                                            <td>{{ formatDate(backup.created) }}</td>
+                                            <td class="cp-table-actions">
+                                                <a class="kiss-size-1"
+                                                   :href="$baseUrl('/backupmanager/download?file='+backup.name)"
+                                                   title="Скачать">
+                                                    <icon>download</icon>
+                                                </a>
+
+                                                <a class="kiss-size-1" href="#"
+                                                   @click.prevent="restoreBackup(backup.name)" title="Восстановить">
+                                                    <icon>history</icon>
+                                                </a>
+
+                                                <a class="kiss-size-1" href="#"
+                                                   @click.prevent="deleteBackup(backup.name)" title="Удалить">
+                                                    <icon>delete</icon>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -75,7 +84,6 @@ $config = $this->module('backupmanager')->config();
                 </div>
             </div>
 
-            <!-- 2. Вид выполнения задачи: Прогресс -->
             <div v-if="state.view === 'progress'">
                 <div class="app-main">
                     <div class="app-main-container">
@@ -95,19 +103,18 @@ $config = $this->module('backupmanager')->config();
 
             <teleport to="body">
                 <app-actionbar>
-                    <!-- Кнопки для основного вида -->
                     <div class="kiss-container" v-if="state.view === 'list'">
                         <div class="kiss-flex kiss-flex-right">
-                            <button class="kiss-button kiss-button-primary" type="primary" icon="upload" @click="createBackup" :disabled="loading">
+                            <button class="kiss-button kiss-button-primary" @click="createBackup" :disabled="loading">
                                 {{ loading ? 'Создание...' : 'Создать резервную копию' }}
                             </button>
                         </div>
                     </div>
 
-                    <!-- Кнопки для вида прогресса -->
                     <div class="kiss-container" v-if="state.view === 'progress'">
                         <div class="kiss-flex kiss-flex-right">
-                            <button class="kiss-button kiss-button-primary" type="primary" @click="finishTask" :disabled="!state.finished">
+                            <button class="kiss-button kiss-button-primary" @click="finishTask"
+                                    :disabled="!state.finished">
                                 <icon class="kiss-margin-xsmall-right" v-if="state.finished">check</icon>
                                 {{ state.finished ? 'Готово' : 'Выполнение...' }}
                             </button>
@@ -122,26 +129,26 @@ $config = $this->module('backupmanager')->config();
             export default {
                 data() {
                     let backups = <?=json_encode($backups)?>;
-                    let excludedFolders = <?=json_encode($config['exclude'])?>;
+                    let settings = <?=json_encode($settings)?>;
 
                     return {
                         backups: backups,
-                        excludedFolders: excludedFolders,
-                        loading: false, // Для состояния отдельной кнопки, если нужно
+                        activePaths: Object.values(settings.paths).filter(p => p._active),
+                        excludedFolders: settings.exclusions,
+                        loading: false,
                         state: {
-                            view: 'list',       // 'list' (список) или 'progress' (выполнение)
-                            message: '',        // Сообщение для экрана прогресса
-                            finished: false,    // Флаг завершения задачи
+                            view: 'list',
+                            message: '',
+                            finished: false,
                         }
-                    }
+                    };
                 },
 
                 mounted() {
 
                 },
 
-                computed: {
-                },
+                computed: {},
 
                 methods: {
 
@@ -160,12 +167,10 @@ $config = $this->module('backupmanager')->config();
                         });
                     },
 
-                    // Метод для кнопки "Готово" на экране прогресса
                     finishTask() {
                         this.state.view = 'list';
                         this.state.message = '';
                         this.state.finished = false;
-                        // Перезагружаем страницу, чтобы обновить список бэкапов
                         window.location.reload();
                     },
 
@@ -181,7 +186,7 @@ $config = $this->module('backupmanager')->config();
                         App.ui.confirm('<strong>ЭТО ОПАСНОЕ ДЕЙСТВИЕ!</strong><br><br>Вы уверены, что хотите восстановить сайт из этого бэкапа? Все текущие файлы будут перезаписаны.', () => {
                             this.runTask(
                                 '/backupmanager/restore',
-                                { file: filename },
+                                {file: filename},
                                 'Восстановление из резервной копии... Пожалуйста, не закрывайте эту вкладку.'
                             );
                         }, {
@@ -190,13 +195,13 @@ $config = $this->module('backupmanager')->config();
                         });
                     },
 
-                    // Удаление - быстрая операция, не требует отдельного экрана
                     deleteBackup(filename) {
                         App.ui.confirm('Вы уверены, что хотите удалить этот бэкап? Это действие необратимо.', () => {
-                            this.loading = true; // Можно использовать локальный лоадер
-                            App.request('/backupmanager/delete', { file: filename }, 'post').then(rsp => {
+                            this.loading = true;
+
+                            App.request('/backupmanager/delete', {file: filename}, 'post').then(rsp => {
                                 App.ui.notify('Бэкап удален!', 'success');
-                                window.location.reload(); // Простой способ обновить список
+                                window.location.reload();
                             }).catch(err => {
                                 App.ui.notify(err.message || 'Ошибка при удалении', 'error');
                             }).finally(() => {
@@ -217,7 +222,7 @@ $config = $this->module('backupmanager')->config();
                         return new Date(timestamp * 1000).toLocaleString();
                     }
                 }
-            }
+            };
         </script>
     </vue-view>
 </kiss-container>
