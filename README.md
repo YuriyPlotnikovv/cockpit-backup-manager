@@ -166,7 +166,8 @@ This method is intended for situations where Cockpit CMS is not functioning or i
     * After successful restoration, the page will display:
         * A link **"Start Over"**.
         * A button **"Delete restoration files and go to site"**.
-          **EXTREMELY IMPORTANT WARNING:**
+
+**EXTREMELY IMPORTANT WARNING:**
 
 * **After successful restoration, YOU MUST IMMEDIATELY DELETE the `restore.php` file from the server.** This is a
   powerful tool that can be used by malicious actors to completely overwrite your site. Use the "Delete backup file and
@@ -355,7 +356,8 @@ return [
     * После успешного восстановления на странице появится:
         * Ссылка **"Начать сначала"**.
         * Кнопка **"Удалить файлы восстановления и перейти на сайт"**.
-          **КРАЙНЕ ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ:**
+
+**КРАЙНЕ ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ:**
 
 * **После успешного восстановления ВЫ ДОЛЖНЫ НЕМЕДЛЕННО УДАЛИТЬ файл `restore.php` с сервера.** Это мощный инструмент,
   который может быть использован злоумышленниками для полного перезаписывания вашего сайта. Используйте кнопку "Удалить
