@@ -29,15 +29,14 @@ $backups = $this->module('backup')->getBackups();
                         </div>
                     </div>
 
-                    <div class="kiss-text-caption kiss-margin-small-bottom kiss-color-muted">
+                    <div class="kiss-text-caption kiss-margin-small-bottom kiss-color-muted" v-if="excludedFolders.length">
                         <?= t('Excluded paths') ?>
                     </div>
 
                     <div class="kiss-flex kiss-flex-middle kiss-flex-wrap" gap="small"
                          v-if="excludedFolders.length">
-                        <div class="kiss-badge kiss-badge-outline" v-for="folder in excludedFolders" :key="folder">{{
-                                                                                                                   folder
-                                                                                                                   }}
+                        <div class="kiss-badge kiss-badge-outline" v-for="folder in excludedFolders" :key="folder">
+                            {{ folder }}
                         </div>
                     </div>
                 </div>
