@@ -166,7 +166,7 @@ class BackupManager extends Helper
     {
         $defaultDsn = 'mongolite://' . rtrim($this->app->path('#storage:'), '/') . '/data';
         $dsn = (string)$this->app->retrieve('database/server', $this->app->retrieve('datastore/server', $defaultDsn));
-        $type = $this->app->dataStorage->type;;
+        $type = $this->app->dataStorage->type;
 
         $manifest = [
             'version' => '1.0',

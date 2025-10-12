@@ -37,6 +37,7 @@ $this->module('backup')->extend([
 
         return $path;
     },
+
     'getBackups' => function () {
         try {
             $dir = $this->getBackupDir(false);
@@ -95,7 +96,7 @@ $this->module('backup')->extend([
         ]);
 
         foreach ($availablePaths as $name => &$path) {
-            $path['_active'] = in_array($name, $savedSettings['inclusions'], true);
+            $path['active'] = in_array($name, $savedSettings['inclusions'], true);
         }
 
         return [
@@ -110,7 +111,7 @@ $this->module('backup')->extend([
         $backupDir = $this->getBackupDir(true);
         $backupFile = $backupDir . '/backup_' . date('Y-m-d_H-i-s') . '.tar.gz';
         $settings = $this->getSettings();
-        $activePaths = array_filter($settings['paths'], static fn($p) => $p['_active']);
+        $activePaths = array_filter($settings['paths'], static fn($path) => $path['active']);
 
         if (empty($activePaths)) {
             throw new \Exception(t('No parts selected for inclusion in the backup.'));
@@ -153,6 +154,22 @@ $this->module('backup')->extend([
         }
     },
 
+    'getRestoreScriptPath' => function () {
+        $scriptPath = __DIR__ . '/restore.php';
+
+        if (!file_exists($scriptPath)) {
+            throw new \Exception(sprintf(t('Restore script file not found at: %s'), $scriptPath));
+        }
+
+        return $scriptPath;
+    },
+
+    'restore' => function ($filename) {
+        $backupDir = $this->getBackupDir(false);
+
+        return $this->app->helper('backup')->restoreTarGzBackup($filename, $backupDir);
+    },
+
     'deleteBackup' => function (string $filename) {
         $backupDir = $this->getBackupDir(false);
         $filePath = rtrim(str_replace('\\', '/', $backupDir), '/') . '/' . basename($filename);
@@ -166,21 +183,5 @@ $this->module('backup')->extend([
         }
 
         return true;
-    },
-
-    'restore' => function ($filename) {
-        $backupDir = $this->getBackupDir(false);
-
-        return $this->app->helper('backup')->restoreTarGzBackup($filename, $backupDir);
-    },
-
-    'getRestoreScriptPath' => function () {
-        $scriptPath = __DIR__ . '/restore.php';
-
-        if (!file_exists($scriptPath)) {
-            throw new \Exception(sprintf(t('Restore script file not found at: %s'), $scriptPath));
-        }
-
-        return $scriptPath;
     },
 ]);

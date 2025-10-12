@@ -52,15 +52,15 @@ A module for Cockpit CMS designed to create, manage, and restore backups of your
 
 ### Base:
 
-*   **Cockpit CMS**: v2.x (the module was developed for this version).
-*   **PHP**: v8.1+ (or higher, depending on Cockpit CMS requirements).
+* **Cockpit CMS**: v2.x (the module was developed for this version).
+* **PHP**: v8.1+ (or higher, depending on Cockpit CMS requirements).
 
 ### For restoration via `restore.php` script:
 
-*   **PHP `Phar` Extension**: Must be enabled in PHP configuration.
-*   **For MongoDB backup/restore**:
-    *   The `shell_exec` function must be enabled in PHP configuration.
-    *   The `mongodump` and `mongorestore` utilities must be installed on the server and available via PATH.
+* **PHP `Phar` Extension**: Must be enabled in PHP configuration.
+* **For MongoDB backup/restore**:
+    * The `shell_exec` function must be enabled in PHP configuration.
+    * The `mongodump` and `mongorestore` utilities must be installed on the server and available via PATH.
 
 ---
 
@@ -139,7 +139,7 @@ return [
 ### Restoring to an Empty Server (using `restore.php`)
 
 This method is intended for situations where Cockpit CMS is not functioning or is being installed on a new server.
-**CRITICALLY IMPORTANT:**
+**IMPORTANT:**
 
 1. **Placement of the `restore.php` script**:
     * Download the `restore.php` file from the admin panel (under "Backup List", link "Download restoration file:
@@ -169,7 +169,7 @@ This method is intended for situations where Cockpit CMS is not functioning or i
         * A link **"Start Over"**.
         * A button **"Delete restoration files and go to site"**.
 
-**EXTREMELY IMPORTANT WARNING:**
+**WARNING:**
 
 * **After successful restoration, YOU MUST IMMEDIATELY DELETE the `restore.php` file from the server.** This is a
   powerful tool that can be used by malicious actors to completely overwrite your site. Use the "Delete backup file and
@@ -179,7 +179,8 @@ This method is intended for situations where Cockpit CMS is not functioning or i
 
 ## License
 
-The module is distributed under the [GNU Affero General Public License v3 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html).
+The module is distributed under
+the [GNU Affero General Public License v3 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html).
 
 ---
 
@@ -328,7 +329,7 @@ return [
 ### Восстановление с помощью скрипта `restore.php`)
 
 Этот метод предназначен для случаев, когда Cockpit CMS не функционирует или устанавливается на новом сервере.
-**КРИТИЧЕСКИ ВАЖНО:**
+**ВАЖНО:**
 
 1. **Размещение скрипта `restore.php`**:
     * Скачайте файл `restore.php` из админ-панели (раздел "Список резервных копий", ссылка "Скачать файл для
@@ -359,7 +360,7 @@ return [
         * Ссылка **"Начать сначала"**.
         * Кнопка **"Удалить файлы восстановления и перейти на сайт"**.
 
-**КРАЙНЕ ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ:**
+**ПРЕДУПРЕЖДЕНИЕ:**
 
 * **После успешного восстановления ВЫ ДОЛЖНЫ НЕМЕДЛЕННО УДАЛИТЬ файл `restore.php` с сервера.** Это мощный инструмент,
   который может быть использован злоумышленниками для полного перезаписывания вашего сайта. Используйте кнопку "Удалить
@@ -370,7 +371,8 @@ return [
 
 ## Лицензия
 
-Модуль распространяется под лицензией [GNU Affero General Public License v3 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html).
+Модуль распространяется под
+лицензией [GNU Affero General Public License v3 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html).
 
 
 ---

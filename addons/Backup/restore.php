@@ -152,7 +152,7 @@ $GLOBALS['LOCALES_RU'] = [
         'Failed to delete restore script %s. You MUST delete this file manually!' => 'Не удалось удалить скрипт восстановления %s. Вы ДОЛЖНЫ удалить этот файл вручную!',
         'Restoration Failed' => 'Восстановление завершилось сбоем',
         'Be sure to delete the script "restore.php" from the server after the recovery is completed.' => 'Обязательно удалите скрипт "restore.php" с сервера после завершения восстановления.',
-        'Delete the recovery files and go to the website' => 'Удалить файлы восстановления и перейти на сайт',
+        'Finish' => 'Завершить',
         'Are you sure you want to delete the backup file and this restore script? This action cannot be undone!' => 'Вы уверены, что хотите удалить файл резервной копии и этот скрипт восстановления? Это действие необратимо!',
         'Yes, Delete All' => 'Да, удалить все',
         'No, Cancel' => 'Нет, отмена',
@@ -650,7 +650,7 @@ function renderFinalStatus($message, $type = 'success', $outputContent = '', $ba
                   style="display:inline-block; margin-left: 20px;">
                 <button type="submit" class="button-danger"
                         onclick="return confirm('<?= loc('Are you sure you want to delete the backup file and this restore script? This action cannot be undone!') ?>')">
-                    <?= loc('Delete the recovery files and go to the website') ?>
+                    <?= loc('Finish') ?>
                 </button>
             </form>
         <?php endif; ?>
