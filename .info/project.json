@@ -1,0 +1,60 @@
+{
+  "id": 15,
+  "title-ru": "Cockpit Backup Manager",
+  "title-en": "Cockpit Backup Manager",
+  "textFirst-ru": "Модуль резервного копирования для CMS Cockpit",
+  "textFirst-en": "A backup module for Cockpit CMS",
+  "textSecond-ru": "Предназначен для создания, управления и восстановления резервных копий системы и данных.",
+  "textSecond-en": "Designed for creating, managing, and restoring system and data backups.",
+  "deploy": "",
+  "features": [
+    {
+      "name-ru": "Дата разработки",
+      "name-en": "Development date",
+      "description-ru": [
+        "Октябрь 2025"
+      ],
+      "description-en": [
+        "October 2025"
+      ]
+    },
+    {
+      "name-ru": "Функциональность",
+      "name-en": "Functionality",
+      "description-ru": [
+        "Гибкое резервное копирование: создание `.tar.gz` архивов, включающих ядро Cockpit CMS, файлы сайта и базу данных (Mongolite/MongoDB)",
+        "Возможность указывать пути (файлы или директории) для исключения из резервной копии через настройки модуля",
+        "Управление резервными копиями: просмотр списка, скачивание и удаление архивов через админ-панель",
+        "Восстановление из резервной копии: через админ-панель (для рабочего сервера) и с помощью специального скрипта restore.php (для нового или пустого сервера)"
+      ],
+      "description-en": [
+        "Flexible backup: creation of `.tar.gz` archives, including Cockpit CMS core, website files, and database (Mongolite/MongoDB)",
+        "Ability to specify paths (files or directories) to exclude from the backup via module settings",
+        "Backup management: viewing a list of, downloading, and deleting archives via the admin panel",
+        "Restoration from backup: via the admin panel (for a working server) and using a special restore.php script (for a new or empty server)"
+      ]
+    }
+  ],
+  "technologies": [
+    {
+      "name": "PHP",
+      "icon": "icon-php",
+      "link": "https://www.php.net/"
+    },
+    {
+      "name": "HTML",
+      "icon": "icon-html",
+      "link": "https://html.spec.whatwg.org/multipage/"
+    },
+    {
+      "name": "JavaScript",
+      "icon": "icon-js",
+      "link": "https://ecma-international.org/publications-and-standards/standards/ecma-262/"
+    },
+    {
+      "name": "Vue",
+      "icon": "icon-vue",
+      "link": "https://vuejs.org/"
+    }
+  ]
+}
