@@ -12,7 +12,6 @@ $this->module('backup')->extend([
     'config' => function (?string $key = null, $default = null) {
         $userConfigBlock = $this->app->retrieve('backup', []);
         $userConfig = $userConfigBlock['config'] ?? [];
-
         if (!is_array($userConfig)) {
             $userConfig = [];
         }
@@ -24,6 +23,16 @@ $this->module('backup')->extend([
         return $key ? ($config[$key] ?? $default) : $config;
     },
 
+    'getInfo' => function () {
+        $file = $this->app->path('backup:info.json');
+
+        if (file_exists($file)) {
+            return json_decode(file_get_contents($file), true);
+        }
+
+        return [];
+    },
+
     'getBackupDir' => function ($create = true) {
         $path = $this->config('backup_path');
 
@@ -31,20 +40,17 @@ $this->module('backup')->extend([
             throw new \Exception(t('The path for saving backups is not configured or incorrect.'));
         }
 
-        if ($create && !is_dir($path) && !mkdir($path, 0755, true) && !is_dir($path)) {
-            throw new \Exception(sprintf(t('Directory "%s" was not created'), $path));
+        $normalizedPath = $this->app->helper('backup')->normalizePath($path, false);
+
+        if ($create && !is_dir($normalizedPath) && !$this->app->helper('fs')->mkdir($normalizedPath)) {
+            throw new \Exception(sprintf(t('Directory "%s" was not created'), $normalizedPath));
         }
 
-        return $path;
+        return $normalizedPath;
     },
 
     'getBackups' => function () {
-        try {
-            $dir = $this->getBackupDir(false);
-        } catch (\Exception $e) {
-            return [];
-        }
-
+        $dir = $this->getBackupDir(false);
         $files = $this->app->helper('fs')->ls('*.tar.gz', $dir);
         $backups = [];
 
@@ -93,95 +99,68 @@ $this->module('backup')->extend([
         $savedSettings = $this->app->dataStorage->getKey('backup', 'settings', [
             'inclusions' => ['Core'],
             'exclusions' => [],
+            'mongoshPath' => '',
+            'mongodumpPath' => '',
+            'mongorestorePath' => '',
         ]);
 
         foreach ($availablePaths as $name => &$path) {
             $path['active'] = in_array($name, $savedSettings['inclusions'], true);
         }
+        unset($path);
 
-        return [
+        $allSettings = [
             'paths' => $availablePaths,
             'exclusions' => $savedSettings['exclusions'] ?? [],
+            'mongoshPath' => $savedSettings['mongoshPath'] ?? '',
+            'mongodumpPath' => $savedSettings['mongodumpPath'] ?? '',
+            'mongorestorePath' => $savedSettings['mongorestorePath'] ?? '',
+            'isMongoDB' => $type === 'mongodb',
         ];
+
+        if ($type === 'mongodb') {
+            $allSettings['mongoToolsStatus'] = [
+                'mongosh_available' => (bool)$this->app->helper('backup')->getMongoToolBinary('mongosh', $allSettings['mongoshPath']),
+                'mongodump_available' => (bool)$this->app->helper('backup')->getMongoToolBinary('mongodump', $allSettings['mongodumpPath']),
+                'mongorestore_available' => (bool)$this->app->helper('backup')->getMongoToolBinary('mongorestore', $allSettings['mongodumpPath']),
+            ];
+        }
+
+        return $allSettings;
     },
 
-    'create' => function () {
-        $projectRoot = dirname($this->app->path('#root:'));
-        $cockpitRoot = $this->app->path('#root:');
+    'createBackup' => function () {
         $backupDir = $this->getBackupDir(true);
-        $backupFile = $backupDir . '/backup_' . date('Y-m-d_H-i-s') . '.tar.gz';
+        $backupFile = $this->app->helper('backup')->normalizePath($backupDir . DIRECTORY_SEPARATOR . 'backup_' . date('Y-m-d_H-i-s') . '.tar.gz', false);
         $settings = $this->getSettings();
-        $activePaths = array_filter($settings['paths'], static fn($path) => $path['active']);
 
-        if (empty($activePaths)) {
-            throw new \Exception(t('No parts selected for inclusion in the backup.'));
+        return $this->app->helper('backup')->createBackup($backupFile, $settings);
+    },
+
+    'restoreBackup' => function ($filename) {
+        $backupDir = $this->getBackupDir(false);
+
+        return $this->app->helper('backup')->restoreBackup($filename, $backupDir);
+    },
+
+    'deleteBackup' => function (string $filename) {
+        $backupDir = $this->getBackupDir(false);
+        $filePath = $this->app->helper('backup')->normalizePath($backupDir . DIRECTORY_SEPARATOR . basename($filename), false);
+
+        if (!file_exists($filePath)) {
+            throw new \Exception(sprintf(t('The backup file was not found: %s'), $filename));
         }
 
-        $backupTempDir = $this->app->helper('backup')->createTempDir();
-        $tempSourceDir = $backupTempDir . '/source';
-
-        try {
-            $this->app->helper('backup')->createBackupManifest($tempSourceDir);
-
-            $exclusions = $this->app->helper('backup')->prepareExclusions(
-                $projectRoot,
-                $backupDir,
-                $settings['exclusions'],
-                $backupTempDir
-            );
-
-            $addedPaths = [];
-
-            foreach ($activePaths as $part) {
-                $this->app->helper('backup')->copyBackupPartToTemp(
-                    $tempSourceDir,
-                    $part,
-                    $projectRoot,
-                    $cockpitRoot,
-                    $exclusions,
-                    $addedPaths,
-                    $backupTempDir
-                );
-            }
-
-            $this->app->helper('backup')->createTarGzArchive($backupFile, $tempSourceDir);
-
-            return true;
-        } catch (\Exception $e) {
-            throw $e;
-        } finally {
-            $this->app->helper('backup')->removeRecursive($backupTempDir);
-        }
+        return $this->app->helper('fs')->delete($filePath);
     },
 
     'getRestoreScriptPath' => function () {
-        $scriptPath = __DIR__ . '/restore.php';
+        $scriptPath = $this->app->helper('backup')->normalizePath(__DIR__ . DIRECTORY_SEPARATOR . 'restore.php', false);
 
         if (!file_exists($scriptPath)) {
             throw new \Exception(sprintf(t('Restore script file not found at: %s'), $scriptPath));
         }
 
         return $scriptPath;
-    },
-
-    'restore' => function ($filename) {
-        $backupDir = $this->getBackupDir(false);
-
-        return $this->app->helper('backup')->restoreTarGzBackup($filename, $backupDir);
-    },
-
-    'deleteBackup' => function (string $filename) {
-        $backupDir = $this->getBackupDir(false);
-        $filePath = rtrim(str_replace('\\', '/', $backupDir), '/') . '/' . basename($filename);
-
-        if (!file_exists($filePath)) {
-            throw new \Exception(sprintf(t('The backup file was not found: %s'), $filename));
-        }
-
-        if (!$this->app->helper('backup')->removeRecursive($filePath)) {
-            throw new \Exception(sprintf(t('Failed to delete file: %s'), $filename));
-        }
-
-        return true;
     },
 ]);

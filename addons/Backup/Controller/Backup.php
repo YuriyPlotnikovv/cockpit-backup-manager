@@ -10,7 +10,7 @@ class Backup extends Base
 
     public function before()
     {
-        if (!$this->helper('acl')->hasPermission('backup/manage')) {
+        if (!$this->helper('acl')->isAllowed('backup/manage')) {
             $this->stop(401);
         }
     }
@@ -20,79 +20,65 @@ class Backup extends Base
         return $this->render('backup:views/index.php', [
             'backups' => $this->module('backup')->getBackups(),
             'settings' => $this->module('backup')->getSettings(),
+            'moduleInfo' => $this->module('backup')->getInfo()
         ]);
     }
 
-    public function settings()
-    {
-        return $this->render('backup:views/settings.php', [
-            'settings' => $this->module('backup')->getSettings(),
-        ]);
-    }
-
-    public function save()
+    public function saveSettings()
     {
         $data = $this->app->request->body;
 
-        if (!isset($data['inclusions'], $data['exclusions'])) {
-            return $this->stop(['error' => t('Invalid settings data.')], 400);
-        }
-
         if (empty($data['inclusions'])) {
-            return $this->stop(['error' => t('Please select at least one section to include in the backup')], 400);
+            return $this->jsonResponse(false, t('Please select at least one section to include in the backup'), 400);
         }
 
-        $validInclusions = ['Core', 'Site', 'Database'];
+        $settingsToSave = [
+            'inclusions' => $data['inclusions'],
+            'exclusions' => $data['exclusions'],
+            'mongoshPath' => $data['mongoshPath'] ?? '',
+            'mongodumpPath' => $data['mongodumpPath'] ?? '',
+            'mongorestorePath' => $data['mongorestorePath'] ?? '',
+        ];
 
-        foreach ($data['inclusions'] as $inclusion) {
-            if (!in_array($inclusion, $validInclusions, true)) {
-                return $this->stop(['error' => t('Invalid inclusion specified.')], 400);
-            }
-        }
+        $this->dataStorage->setKey('backup', 'settings', $settingsToSave);
 
-        $this->dataStorage->setKey('backup', 'settings', $data);
-
-        return ['success' => true, 'message' => t('Settings saved successfully!')];
+        return $this->jsonResponse(true, t('Settings saved successfully!'));
     }
 
-    public function getBackupsList()
+    public function getSettings()
+    {
+        try {
+            $settings = $this->module('backup')->getSettings();
+
+            return $this->jsonResponse(true, t('Settings loaded successfully'), 200, $settings);
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, t('Failed to load settings.'), 500, ['details' => $e->getMessage()]);
+        }
+    }
+
+    public function getBackups()
     {
         try {
             $backups = $this->module('backup')->getBackups();
 
-            return ['success' => true, 'backups' => $backups];
+            return $this->jsonResponse(true, t('Backup list loaded successfully'), 200, ['backups' => $backups]);
         } catch (\Exception $e) {
-            return $this->stop(['error' => $e->getMessage()], 500);
+            return $this->jsonResponse(false, t('Failed to load backup list.'), 500, ['details' => $e->getMessage()]);
         }
     }
 
-    public function create()
+    public function createBackup()
     {
         try {
-            $this->module('backup')->create();
+            $this->module('backup')->createBackup();
 
             return $this->jsonResponse(true, t('The backup has been created successfully!'));
         } catch (\Exception $e) {
-            return $this->jsonResponse(false, $e->getMessage(), 500);
+            return $this->jsonResponse(false, t('Failed to create backup.'), 500, ['details' => $e->getMessage()]);
         }
     }
 
-    protected function jsonResponse(bool $success, string $message, int $statusCode = 200): array
-    {
-        $response = ['success' => $success];
-
-        if ($success) {
-            $response['message'] = $message;
-        } else {
-            $response['error'] = $message;
-        }
-
-        $this->app->response->status = $statusCode;
-
-        return $response;
-    }
-
-    public function restore()
+    public function restoreBackup()
     {
         $filename = $this->param('file');
 
@@ -105,28 +91,15 @@ class Backup extends Base
         }
 
         try {
-            $this->module('backup')->restore($filename);
+            $this->module('backup')->restoreBackup($filename);
 
             return $this->jsonResponse(true, t('The backup was successfully restored.'));
         } catch (\Exception $e) {
-            return $this->jsonResponse(false, t('Backup recovery error: ') . $e->getMessage(), 500);
+            return $this->jsonResponse(false, t('Failed to restore backup.'), 500, ['details' => t('Recovery error: ') . $e->getMessage()]);
         }
     }
 
-    protected function isValidBackupFilename(string $filename): bool
-    {
-        if (!preg_match('/^[a-zA-Z0-9._-]+\.tar\.gz$/', $filename)) {
-            return false;
-        }
-
-        if (str_contains($filename, '..') || str_contains($filename, '/')) {
-            return false;
-        }
-
-        return true;
-    }
-
-    public function delete()
+    public function deleteBackup()
     {
         $filename = $this->param('file');
 
@@ -143,11 +116,11 @@ class Backup extends Base
 
             return $this->jsonResponse(true, t('The backup has been deleted.'));
         } catch (\Exception $e) {
-            return $this->jsonResponse(false, t('Delete error: ') . $e->getMessage(), 500);
+            return $this->jsonResponse(false, t('Failed to delete backup. ') . $e->getMessage(), 500);
         }
     }
 
-    public function download()
+    public function downloadBackup()
     {
         $filename = $this->param('file');
 
@@ -183,21 +156,6 @@ class Backup extends Base
         return true;
     }
 
-    protected function isFileInDirectory(string $filePath, string $directory): bool
-    {
-        $realFilePath = realpath($filePath);
-        $realDirectory = realpath($directory);
-
-        if ($realFilePath === false || $realDirectory === false) {
-            return false;
-        }
-
-        $normalizedRealFilePath = str_replace('/', DIRECTORY_SEPARATOR, $realFilePath);
-        $normalizedRealDirectory = str_replace('/', DIRECTORY_SEPARATOR, $realDirectory);
-
-        return str_starts_with($normalizedRealFilePath, $normalizedRealDirectory);
-    }
-
     protected function sendFile(string $filePath, string $mimeType): void
     {
         if (!file_exists($filePath) || !is_readable($filePath)) {
@@ -220,5 +178,51 @@ class Backup extends Base
         readfile($filePath);
 
         exit;
+    }
+
+    protected function jsonResponse(bool $success, string $message, int $statusCode = 200, array $data = []): array
+    {
+        $response = ['success' => $success];
+        $response['message'] = $message;
+
+        if (!$success && !empty($data['details'])) {
+            $response['details'] = $data['details'];
+        }
+
+        if (!empty($data) && !isset($data['details'])) {
+            $response = array_merge($response, $data);
+        }
+
+        $this->app->response->status = $statusCode;
+
+        return $response;
+    }
+
+    protected function isValidBackupFilename(string $filename): bool
+    {
+        if (!preg_match('/^[a-zA-Z0-9._-]+\.tar\.gz$/', $filename)) {
+            return false;
+        }
+
+        if (str_contains($filename, '..') || str_contains($filename, '/')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function isFileInDirectory(string $filePath, string $directory): bool
+    {
+        $realFilePath = realpath($filePath);
+        $realDirectory = realpath($directory);
+
+        if ($realFilePath === false || $realDirectory === false) {
+            return false;
+        }
+
+        $normalizedRealFilePath = str_replace('/', DIRECTORY_SEPARATOR, $realFilePath);
+        $normalizedRealDirectory = str_replace('/', DIRECTORY_SEPARATOR, $realDirectory);
+
+        return str_starts_with($normalizedRealFilePath, $normalizedRealDirectory);
     }
 }

@@ -1,0 +1,16 @@
+{
+  "name": "Backup Manager",
+  "version": "1.2.0",
+  "description": "This module is a non-commercial project, developed by the author in their free time. As such, the author cannot guarantee continuous active development and regular feature updates. Community contributions are welcome: feel free to report bugs, suggest improvements, or participate in development via the GitHub repository.",
+  "license": "AGPL-3.0",
+  "author": {
+    "name": "Yuriy Plotnikov",
+    "email": "yuriy.plotnikovv@yandex.ru",
+    "url": "https://yuriyplotnikovv.ru/",
+    "support": "https://yoomoney.ru/fundraise/1DA9AHH90MC.251010"
+  },
+  "homepage": "https://github.com/YuriyPlotnikovv/CockpitBackupManager/",
+  "dependencies": {
+    "cockpit": ">=2.0.0"
+  }
+}

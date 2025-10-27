@@ -17,6 +17,8 @@
                 <?= $this->render('backup:views/parts/tab-list.php') ?>
 
                 <?= $this->render('backup:views/parts/tab-settings.php') ?>
+
+                <?= $this->render('backup:views/parts/tab-about.php') ?>
             </kiss-tabs>
 
             <?= $this->render('backup:views/parts/state-progress.php') ?>

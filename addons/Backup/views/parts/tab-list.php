@@ -1,5 +1,10 @@
+<?
+$hasRestoreAccess = $this->helper('acl')->isAllowed('backup/restore');
+?>
+
 <tab class="kiss-margin animated fadeIn" caption="<?= t('List of backups') ?>" name="list">
-    <div class="kiss-margin-large-bottom kiss-padding kiss-bgcolor-contrast"
+    <kiss-card class="kiss-margin-large-bottom kiss-padding kiss-bgcolor-contrast"
+         theme="shadowed"
          v-if="state.view === 'list' && paths.length"
     >
         <div class="kiss-text-upper kiss-size-small kiss-color-muted">
@@ -30,7 +35,7 @@
                 {{ exclusion.value }}
             </li>
         </ul>
-    </div>
+    </kiss-card>
 
     <div class="kiss-margin-small-bottom kiss-flex kiss-flex-middle kiss-flex-between">
         <span class="kiss-text-bold">
@@ -94,22 +99,24 @@
             </td>
 
             <td>
-                <div class="kiss-flex kiss-flex-between">
+                <div class="kiss-flex kiss-flex-around">
                     <a class="kiss-size-3 kiss-transition"
-                       :href="$baseUrl('/backup/download?file='+backup.name)"
+                       :href="$baseUrl('/backup/downloadBackup?file='+backup.name)"
                        :title="t('Download a backup')"
                        target="_blank"
                     >
                         <icon>download</icon>
                     </a>
 
-                    <a class="kiss-size-3 kiss-transition"
-                       href="#"
-                       @click.prevent="restoreBackup(backup.name)"
-                       :title="t('Restore a backup')"
-                    >
-                        <icon>history</icon>
-                    </a>
+                    <? if ($hasRestoreAccess): ?>
+                        <a class="kiss-size-3 kiss-transition"
+                           href="#"
+                           @click.prevent="restoreBackup(backup.name)"
+                           :title="t('Restore a backup')"
+                        >
+                            <icon>history</icon>
+                        </a>
+                    <? endif; ?>
 
                     <a class="kiss-size-3 kiss-transition"
                        href="#"
@@ -124,70 +131,74 @@
         </tbody>
     </table>
 
-    <div class="kiss-margin-large-top kiss-padding kiss-bgcolor-contrast kiss-color-muted">
-        <div class="kiss-size-large kiss-margin-bottom">
-            <?= t('Restore script file: ') ?>
+    <? if ($hasRestoreAccess): ?>
+        <kiss-card class="kiss-margin-large-top kiss-padding kiss-bgcolor-contrast kiss-color-muted"
+                   theme="shadowed"
+        >
+            <div class="kiss-size-large kiss-margin-bottom">
+                <?= t('Restore script file: ') ?>
 
-            <a class="kiss-text-monospace kiss-transition"
-               :href="$baseUrl('/backup/downloadRestoreScript')"
-               target="_blank"
-            >
-                restore.php
-            </a>
-        </div>
-
-        <div class="kiss-size-large">
-            <?= t('Restore script usage instructions') ?>
-        </div>
-
-        <div class="kiss-padding">
-            <div class="kiss-text-bold">
-                <?= t('File preparation') ?>
+                <a class="kiss-text-monospace kiss-transition"
+                   :href="$baseUrl('/backup/downloadRestoreScript')"
+                   target="_blank"
+                >
+                    restore.php
+                </a>
             </div>
 
-            <ul>
-                <li>
-                    <?= t('Download the file <span class="kiss-text-monospace">restore.php</span> and your <span class="kiss-text-monospace">.tar.gz</span> backup file.') ?>
-                </li>
-
-                <li>
-                    <?= t('Upload BOTH files to the ROOT directory of your site (e.g., to <span class="kiss-text-monospace">/public_html</span>).') ?>
-                </li>
-            </ul>
-
-            <div class="kiss-text-bold">
-                <?= t('Starting the restoration process') ?>
+            <div class="kiss-size-large">
+                <?= t('Restore script usage instructions') ?>
             </div>
 
-            <ul>
-                <li>
-                    <?= t('Open <span class="kiss-text-monospace">restore.php</span> in your browser (e.g., <span class="kiss-text-monospace" style="word-break: break-word;">https://yourdomain.ru/restore.php</span>).') ?>
-                </li>
+            <div class="kiss-padding">
+                <div class="kiss-text-bold">
+                    <?= t('File preparation') ?>
+                </div>
 
-                <li>
-                    <?= t('The script will automatically detect backups and suggest the most recent one.') ?>
-                </li>
+                <ul>
+                    <li>
+                        <?= t('Download the file <span class="kiss-text-monospace">restore.php</span> and your <span class="kiss-text-monospace">.tar.gz</span> backup file.') ?>
+                    </li>
 
-                <li>
-                    <?= t('Check the backup details and restoration parameters. Adjust default paths if necessary.') ?>
-                </li>
+                    <li>
+                        <?= t('Upload BOTH files to the ROOT directory of your site (e.g., to <span class="kiss-text-monospace">/public_html</span>).') ?>
+                    </li>
+                </ul>
 
-                <li>
-                    <?= t('Click') ?> <span class="kiss-text-bold">"<?= t('Start restoration') ?>"</span>.
-                </li>
-            </ul>
+                <div class="kiss-text-bold">
+                    <?= t('Starting the restoration process') ?>
+                </div>
 
-            <div class="kiss-text-bold">
-                <?= t('Completion') ?>
+                <ul>
+                    <li>
+                        <?= t('Open <span class="kiss-text-monospace">restore.php</span> in your browser (e.g., <span class="kiss-text-monospace" style="word-break: break-word;">https://yourdomain.ru/restore.php</span>).') ?>
+                    </li>
+
+                    <li>
+                        <?= t('The script will automatically detect backups and suggest the most recent one.') ?>
+                    </li>
+
+                    <li>
+                        <?= t('Check the backup details and restoration parameters. Adjust default paths if necessary.') ?>
+                    </li>
+
+                    <li>
+                        <?= t('Click') ?> <span class="kiss-text-bold">"<?= t('Start restoration') ?>"</span>.
+                    </li>
+                </ul>
+
+                <div class="kiss-text-bold">
+                    <?= t('Completion') ?>
+                </div>
+
+                <ul class="kiss-margin-remove-bottom">
+                    <li>
+                        <?= t('After the script completes, the restoration logs and buttons') ?>
+                        <span class="kiss-text-bold">"<?= t('Start over') ?>"</span> и <span
+                            class="kiss-text-bold">"<?= t('Finish') ?>"</span>.
+                    </li>
+                </ul>
             </div>
-
-            <ul class="kiss-margin-remove-bottom">
-                <li>
-                    <?= t('After the script completes, the restoration logs and buttons') ?>
-                    <span class="kiss-text-bold">"<?= t('Start over') ?>"</span> и <span
-                        class="kiss-text-bold">"<?= t('Finish') ?>"</span>.
-                </li>
-            </ul>
-        </div>
-    </div>
+        </kiss-card>
+    <? endif; ?>
 </tab>

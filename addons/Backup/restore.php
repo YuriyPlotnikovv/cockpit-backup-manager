@@ -6,156 +6,156 @@ ignore_user_abort(true);
 session_start();
 
 $GLOBALS['LOCALES_RU'] = [
-        'Cockpit CMS Restore' => 'Восстановление Cockpit CMS',
-        'Item not found, assuming deleted: %s' => 'Элемент не найден, считается удаленным: %s',
-        'Deleting file: %s' => 'Удаление файла: %s',
-        'Failed to delete file "%s". PHP Error: %s' => 'Не удалось удалить файл "%s". Ошибка PHP: %s',
-        'File deleted: %s' => 'Файл удален: %s',
-        'Attempting to delete directory: %s' => 'Попытка удаления директории: %s',
-        'Failed to delete subdirectory "%s". PHP Error: %s' => 'Не удалось удалить поддиректорию "%s". Ошибка PHP: %s',
-        'Failed to delete root directory "%s". PHP Error: %s' => 'Не удалось удалить корневую директорию "%s". Ошибка PHP: %s',
-        'Directory deleted: %s' => 'Директория удалена: %s',
-        'Error during recursive directory deletion of "%s": %s' => 'Ошибка при рекурсивном удалении директории "%s": %s',
-        'Cannot delete item "%s": neither a file nor a directory.' => 'Невозможно удалить элемент "%s": ни файл, ни директория.',
-        'Warning: Source path does not exist for copying: \'%s\'. Skipping.' => 'Предупреждение: Исходный путь для копирования не существует: \'%s\'. Пропускается.',
-        'Error: Failed to create parent directory "%s" for file "%s".' => 'Ошибка: Не удалось создать родительскую директорию "%s" для файла "%s".',
-        'Parent directory created: %s' => 'Родительская директория создана: %s',
-        'Error: Failed to copy file from "%s" to "%s". PHP Error: %s' => 'Ошибка: Не удалось скопировать файл из "%s" в "%s". Ошибка PHP: %s',
-        'File copied: %s to %s' => 'Файл скопирован: %s в %s',
-        'Error: Failed to create directory "%s" for copying.' => 'Ошибка: Не удалось создать директорию "%s" для копирования.',
-        'Directory created: %s' => 'Директория создана: %s',
-        'Error: Failed to create subdirectory "%s" for copying.' => 'Ошибка: Не удалось создать поддиректорию "%s" для копирования.',
-        'Subdirectory created: %s' => 'Поддиректория создана: %s',
-        'Directory copied: %s to %s' => 'Директория скопирована: %s в %s',
-        'Warning: Source \'%s\' is neither a file nor a directory. Skipping.' => 'Предупреждение: Источник \'%s\' не является ни файлом, ни директорией. Пропускается.',
-        'Warning: Backup directory \'%s\' not found. Cannot scan for backups.' => 'Предупреждение: Директория резервных копий \'%s\' не найдена. Невозможно сканировать на наличие резервных копий.',
-        'Bytes' => 'Байт',
-        'KB' => 'КБ',
-        'MB' => 'МБ',
-        'GB' => 'ГБ',
-        'TB' => 'ТБ',
-        'Backup archive not found: \'%s\'.' => 'Архив резервной копии не найден: \'%s\'.',
-        'Failed to create temporary directory for manifest extraction.' => 'Не удалось создать временную директорию для извлечения манифеста.',
-        'Extracting manifest from \'%s\' to \'%s\'.' => 'Извлечение манифеста из \'%s\' в \'%s\'.',
-        'Manifest file not found in the archive after extraction.' => 'Файл манифеста не найден в архиве после извлечения.',
-        'Manifest extracted and parsed successfully.' => 'Манифест успешно извлечен и разобран.',
-        'Error reading manifest from archive: %s' => 'Ошибка чтения манифеста из архива: %s',
-        'Cleaning up temporary manifest directory: %s' => 'Очистка временной директории манифеста: %s',
-        'Restore Confirmation' => 'Подтверждение восстановления',
-        'WARNING!' => 'ВНИМАНИЕ!',
-        'You are about to restore your site from backup' => 'Вы собираетесь восстановить ваш сайт из резервной копии',
-        'This action <strong>will overwrite all current files and database</strong> on your server.' => 'Это действие <strong>перезапишет все текущие файлы и базу данных</strong> на вашем сервере.',
-        'It <strong>cannot be undone</strong>. Ensure you have backed up the current state of your site if necessary.' => 'Это <strong>нельзя отменить</strong>. Убедитесь, что вы сделали резервную копию текущего состояния вашего сайта, если это необходимо.',
-        'Backup Details:' => 'Детали резервной копии:',
-        'Filename:' => 'Имя файла:',
-        'Cockpit Version:' => 'Версия Cockpit:',
-        'Creation Date:' => 'Дата создания:',
-        'DB Type:' => 'Тип БД:',
-        'DB Name (MongoDB):' => 'Имя БД (MongoDB):',
-        'DB DSN:' => 'DSN БД:',
-        'may contain sensitive data' => 'может содержать конфиденциальные данные',
-        'Path to Cockpit CMS installation (where index.php is):' => 'Путь к установке Cockpit CMS (где находится index.php):',
-        'Path to Mongolite data folder (e.g., /cockpit/storage/data):' => 'Путь к папке данных Mongolite (например, /cockpit/storage/data):',
-        'Start Restoration' => 'Начать восстановление',
-        'Cancel' => 'Отмена',
-        'Restoration Complete' => 'Восстановление завершено',
-        'Restoration Log:' => 'Журнал восстановления:',
-        'Start Over' => 'Начать сначала',
-        'PHP Phar extension is not enabled. It is required for backup/restore operations.' => 'Расширение PHP Phar не включено. Оно необходимо для операций резервного копирования/восстановления.',
-        'shell_exec function is disabled. MongoDB restoration will not be possible.' => 'Функция shell_exec отключена. Восстановление MongoDB будет невозможно.',
-        '\'mongorestore\' utility not found in PATH. MongoDB restoration will not be possible.' => 'Утилита \'mongorestore\' не найдена в PATH. Восстановление MongoDB будет невозможно.',
-        '\'mongodump\' utility not found in PATH. MongoDB backup/restore might face issues.' => 'Утилита \'mongodump\' не найдена в PATH. Резервное копирование/восстановление MongoDB может столкнуться с проблемами.',
-        "No backup files (.tar.gz) found in '%s'. Please place a backup file in this directory." => "Файлы резервных копий (.tar.gz) не найдены в '%s'. Пожалуйста, поместите файл резервной копии в эту директорию.",
-        'Invalid backup filename specified.' => 'Указано неверное имя файла резервной копии.',
-        'Internal Error: Chosen backup data could not be resolved, despite backups being found.' => 'Внутренняя ошибка: Выбранные данные резервной копии не удалось разрешить, несмотря на то, что резервные копии были найдены.',
-        "Security Error: Resolved backup file '%s' is not within the expected backup directory '%s'." => "Ошибка безопасности: Разрешенный файл резервной копии '%s' не находится в ожидаемой директории резервных копий '%s'.",
-        "Resolved backup file '%s' does not exist or is not a file. This indicates a filesystem issue or incorrect path resolving." => "Разрешенный файл резервной копии '%s' не существует или не является файлом. Это указывает на проблему файловой системы или неверное разрешение пути.",
-        'Cockpit CMS installation path cannot be empty.' => 'Путь установки Cockpit CMS не может быть пустым.',
-        "Invalid or unsafe Cockpit CMS installation path: '%s'. Path must be absolute and within the script's directory '%s'. Check for traversal attempts or non-existent parent directories." => "Неверный или небезопасный путь установки Cockpit CMS: '%s'. Путь должен быть абсолютным и находиться в директории скрипта '%s'. Проверьте попытки обхода или несуществующие родительские директории.",
-        'Session data for backup manifest not found. Please restart the restore process from the beginning.' => 'Данные сессии для манифеста резервной копии не найдены. Пожалуйста, начните процесс восстановления с начала.',
-        "Invalid or unsafe Mongolite data path: '%s'. Path must be absolute and within the Cockpit CMS installation path '%s'. Check for traversal attempts or non-existent parent directories." => "Неверный или небезопасный путь к данным Mongolite: '%s'. Путь должен быть абсолютным и находиться в пути установки Cockpit CMS '%s'. Проверьте попытки обхода или несуществующие родительские директории.",
-        '--- Starting restoration process ---' => '--- Начало процесса восстановления ---',
-        'Selected backup: %s' => 'Выбранная резервная копия: %s',
-        'Backup source path: %s' => 'Исходный путь резервной копии: %s',
-        'Cockpit CMS installation path: %s' => 'Путь установки Cockpit CMS: %s',
-        'Mongolite data path: %s' => 'Путь к данным Mongolite: %s',
-        'Extracting backup to temporary directory: %s' => 'Извлечение резервной копии во временную директорию: %s',
-        'Failed to create temporary extraction directory "%s".' => 'Не удалось создать временную директорию для извлечения "%s".',
-        'Backup extracted successfully.' => 'Резервная копия успешно извлечена.',
-        'Error extracting backup: %s' => 'Ошибка извлечения резервной копии: %s',
-        'Backup manifest loaded from backup file.' => 'Манифест резервной копии загружен из файла.',
-        '--- Restoring Files ---' => '--- Восстановление файлов ---',
-        'Removing existing Cockpit CMS installation at: %s' => 'Удаление существующей установки Cockpit CMS по адресу: %s',
-        'Skipping deletion of restore.php itself: %s' => 'Пропускается удаление самого restore.php: %s',
-        'Restoring Cockpit CMS files to: %s' => 'Восстановление файлов Cockpit CMS в: %s',
-        'Warning: Cockpit CMS files directory not found in backup (expected: %s). Skipping Cockpit file restoration.' => 'Предупреждение: Директория файлов Cockpit CMS не найдена в резервной копии (ожидалось: %s). Пропускается восстановление файлов Cockpit.',
-        'Restoring project root files to: %s' => 'Восстановление файлов корня проекта в: %s',
-        'Removing existing item \'%s\' before restore.' => 'Удаление существующего элемента \'%s\' перед восстановлением.',
-        'File restoration complete.' => 'Восстановление файлов завершено.',
-        '--- Restoring Database ---' => '--- Восстановление базы данных ---',
-        'Mongolite database restoration is implicitly handled by "Core" files restoration. No separate database dump restore needed.' => 'Восстановление базы данных Mongolite неявно обрабатывается при восстановлении файлов "Ядра". Отдельное восстановление дампа базы данных не требуется.',
-        'Warning: Failed to ensure Mongolite data directory exists at \'%s\'.' => 'Предупреждение: Не удалось убедиться в существовании директории данных Mongolite по адресу \'%s\'.',
-        'Error: shell_exec function is disabled. MongoDB restoration not possible.' => 'Ошибка: Функция shell_exec отключена. Восстановление MongoDB будет невозможно.',
-        "Error: 'mongorestore' utility not found. MongoDB restoration not possible." => "Ошибка: Утилита 'mongorestore' не найдена. Восстановление MongoDB будет невозможно.",
-        "MongoDB archive file not found in backup at '%s'. Skipping database restoration." => "Ошибка: Архивный файл MongoDB не найден в резервной копии по адресу '%s'. Пропускается восстановление базы данных.",
-        'Database DSN or name not found in manifest. Cannot restore MongoDB.' => 'Ошибка: DSN или имя базы данных не найдены в манифесте. Невозможно восстановить MongoDB.',
-        'Restoring MongoDB database.' => 'Восстановление базы данных MongoDB.',
-        '  Database DSN: %s' => '  DSN базы данных: %s',
-        '  Database Name: %s' => '  Имя базы данных: %s',
-        '  Archive: %s' => '  Архив: %s',
-        'Executing command: %s' => 'Выполнение команды: %s',
-        'MongoDB restoration output:\n%s' => 'Вывод восстановления MongoDB:\n%s',
-        'Error: MongoDB restoration failed. Check the output above and ensure mongorestore utility is installed and accessible.' => 'Ошибка: Восстановление MongoDB завершилось сбоем. Проверьте вывод выше и убедитесь, что утилита mongorestore установлена и доступна.',
-        'MongoDB database restored.' => 'База данных MongoDB восстановлена.',
-        'Warning: Unsupported database type \'%s\' found in manifest. Skipping database restoration.' => 'Предупреждение: Неподдерживаемый тип базы данных \'%s\' найден в манифесте. Пропускается восстановление базы данных.',
-        '--- Cleanup ---' => '--- Очистка ---',
-        'Removing temporary extraction directory: %s' => 'Удаление временной директории извлечения: %s',
-        'Clearing Cockpit CMS cache at \'%s\'...' => 'Очистка кэша Cockpit CMS по адресу \'%s\'...',
-        'Warning: Failed to recreate Cockpit CMS cache directory: \'%s\'.' => 'Предупреждение: Не удалось воссоздать директорию кэша Cockpit CMS: \'%s\'.',
-        'Cockpit CMS cache cleared.' => 'Кэш Cockpit CMS очищен.',
-        '--- Restoration Complete ---' => '--- Восстановление завершено ---',
-        '--- Starting post-restoration cleanup ---' => '--- Начало очистки после восстановления ---',
-        'Final cleanup: removing temporary extraction directory: %s' => 'Окончательная очистка: удаление временной директории извлечения: %s',
-        'CRITICAL ERROR: %s' => 'КРИТИЧЕСКАЯ ОШИБКА: %s',
-        'Restoration failed: %s' => 'Восстановление завершилось сбоем: %s',
-        'Site restored successfully!' => 'Сайт успешно восстановлен!',
-        'An unexpected error occurred during page setup or no action was taken. This might indicate that no backup was found or a critical error prevented rendering.' => 'Произошла непредвиденная ошибка при настройке страницы или не было предпринято никаких действий. Это может указывать на то, что резервная копия не найдена или критическая ошибка предотвратила рендеринг.',
-        'Unknown error' => 'Неизвестная ошибка',
-        'Invalid Cockpit CMS installation path: \'%s\'. Path is not resolvable.' => 'Неверный путь установки Cockpit CMS: \'%s\'. Путь неразрешим.',
-        'Internal Error: Script directory path \'%s\' is not resolvable.' => 'Внутренняя ошибка: Путь к директории скрипта \'%s\' неразрешим.',
-        'Invalid Mongolite data path: \'%s\'. Path is not resolvable.' => 'Неверный путь к данным Mongolite: \'%s\'. Путь неразрешим.',
-        'Cockpit CMS installation path \'%s\' does not exist yet. Will attempt to create it.' => 'Путь установки Cockpit CMS \'%s\' еще не существует. Будет предпринята попытка его создания.',
-        'Mongolite data path \'%s\' does not exist yet. Will attempt to create it.' => 'Путь к данным Mongolite \'%s\' еще не существует. Будет предпринята попытка его создания.',
-        'Invalid or unsafe Cockpit CMS installation path: \'%s\'. Path must be absolute and within the script\'s directory \'%s\'. Check for traversal attempts or non-existent parent directories.' => 'Неверный или небезопасный путь установки Cockpit CMS: \'%s\'. Путь должен быть абсолютным и находиться в директории скрипта \'%s\'. Проверьте попытки обхода или несуществующие родительские директории.',
-        'Invalid or unsafe Mongolite data path: \'%s\'. Path must be absolute and within the Cockpit CMS installation path \'%s\'. Check for traversal attempts or non-existent parent directories.' => 'Неверный или небезопасный путь к данным Mongolite: \'%s\'. Путь должен быть абсолютным и находиться в пути установки Cockpit CMS \'%s\'. Проверьте попытки обхода или несуществующие родительские директории.',
-        'or' => 'или',
-        'Setting appropriate file permissions...' => 'Установка соответствующих прав доступа к файлам...',
-        'Failed to set permissions for %s. PHP Error: %s' => 'Не удалось установить права для %s. Ошибка PHP: %s',
-        'Permissions set for %s.' => 'Права установлены для %s.',
-        'Permissions set for all restored files and directories.' => 'Права установлены для всех восстановленных файлов и директорий.',
-        'Warning: Path not found for permission setting: %s. Skipping.' => 'Предупреждение: Путь не найден для установки прав: %s. Пропускается.',
-        'Warning: Skipping inaccessible item for permission setting: %s.' => 'Предупреждение: Пропускается недоступный элемент для установки прав: %s.',
-        'Failed to set permissions for directory %s. PHP Error: %s' => 'Не удалось установить права для директории %s. Ошибка PHP: %s',
-        'Failed to set permissions for file %s. PHP Error: %s' => 'Не удалось установить права для файла %s. Ошибка PHP: %s',
-        'Failed to set permissions for root directory %s. PHP Error: %s' => 'Не удалось установить права для корневой директории %s. Ошибка PHP: %s',
-        'Error setting permissions for %s: %s' => 'Ошибка установки прав для %s: %s',
-        'Error: Failed to create Cockpit CMS installation directory "%s".' => 'Ошибка: Не удалось создать директорию установки Cockpit CMS "%s".',
-        'Error: Failed to create directory "%s" for project files.' => 'Ошибка: Не удалось создать директорию "%s" для файлов проекта.',
-        'Restoring project file/directory: %s to %s' => 'Восстановление файла/директории проекта: %s в %s',
-        'Error: Failed to create config directory "%s".' => 'Ошибка: Не удалось создать директорию конфигурации "%s".',
-        'Attempting to delete backup file: %s' => 'Попытка удаления файла резервной копии: %s',
-        'Backup file %s deleted successfully.' => 'Файл резервной копии %s успешно удален.',
-        'Warning: Failed to delete backup file %s. Error: %s' => 'Предупреждение: Не удалось удалить файл резервной копии %s. Ошибка: %s',
-        'Attempting to delete restore script: %s' => 'Попытка удаления скрипта восстановления: %s',
-        'Restore script %s deleted successfully. Redirecting to Cockpit admin...' => 'Скрипт восстановления %s успешно удален. Перенаправление на страницу администрирования Cockpit...',
-        'CRITICAL WARNING: Failed to delete restore script %s. Error: %s. You MUST delete this file manually!' => 'КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ: Не удалось удалить скрипт восстановления %s. Ошибка: %s. Вы ДОЛЖНЫ удалить этот файл вручную!',
-        'Failed to delete restore script %s. You MUST delete this file manually!' => 'Не удалось удалить скрипт восстановления %s. Вы ДОЛЖНЫ удалить этот файл вручную!',
-        'Restoration Failed' => 'Восстановление завершилось сбоем',
-        'Be sure to delete the script "restore.php" from the server after the recovery is completed.' => 'Обязательно удалите скрипт "restore.php" с сервера после завершения восстановления.',
-        'Finish' => 'Завершить',
-        'Are you sure you want to delete the backup file and this restore script? This action cannot be undone!' => 'Вы уверены, что хотите удалить файл резервной копии и этот скрипт восстановления? Это действие необратимо!',
-        'Yes, Delete All' => 'Да, удалить все',
-        'No, Cancel' => 'Нет, отмена',
+    'Cockpit CMS Restore' => 'Восстановление Cockpit CMS',
+    'Item not found, assuming deleted: %s' => 'Элемент не найден, считается удаленным: %s',
+    'Deleting file: %s' => 'Удаление файла: %s',
+    'Failed to delete file "%s". PHP Error: %s' => 'Не удалось удалить файл "%s". Ошибка PHP: %s',
+    'File deleted: %s' => 'Файл удален: %s',
+    'Attempting to delete directory: %s' => 'Попытка удаления директории: %s',
+    'Failed to delete subdirectory "%s". PHP Error: %s' => 'Не удалось удалить поддиректорию "%s". Ошибка PHP: %s',
+    'Failed to delete root directory "%s". PHP Error: %s' => 'Не удалось удалить корневую директорию "%s". Ошибка PHP: %s',
+    'Directory deleted: %s' => 'Директория удалена: %s',
+    'Error during recursive directory deletion of "%s": %s' => 'Ошибка при рекурсивном удалении директории "%s": %s',
+    'Cannot delete item "%s": neither a file nor a directory.' => 'Невозможно удалить элемент "%s": ни файл, ни директория.',
+    'Warning: Source path does not exist for copying: \'%s\'. Skipping.' => 'Предупреждение: Исходный путь для копирования не существует: \'%s\'. Пропускается.',
+    'Error: Failed to create parent directory "%s" for file "%s".' => 'Ошибка: Не удалось создать родительскую директорию "%s" для файла "%s".',
+    'Parent directory created: %s' => 'Родительская директория создана: %s',
+    'Error: Failed to copy file from "%s" to "%s". PHP Error: %s' => 'Ошибка: Не удалось скопировать файл из "%s" в "%s". Ошибка PHP: %s',
+    'File copied: %s to %s' => 'Файл скопирован: %s в %s',
+    'Error: Failed to create directory "%s" for copying.' => 'Ошибка: Не удалось создать директорию "%s" для копирования.',
+    'Directory created: %s' => 'Директория создана: %s',
+    'Error: Failed to create subdirectory "%s" for copying.' => 'Ошибка: Не удалось создать поддиректорию "%s" для копирования.',
+    'Subdirectory created: %s' => 'Поддиректория создана: %s',
+    'Directory copied: %s to %s' => 'Директория скопирована: %s в %s',
+    'Warning: Source \'%s\' is neither a file nor a directory. Skipping.' => 'Предупреждение: Источник \'%s\' не является ни файлом, ни директорией. Пропускается.',
+    'Warning: Backup directory \'%s\' not found. Cannot scan for backups.' => 'Предупреждение: Директория резервных копий \'%s\' не найдена. Невозможно сканировать на наличие резервных копий.',
+    'Bytes' => 'Байт',
+    'KB' => 'КБ',
+    'MB' => 'МБ',
+    'GB' => 'ГБ',
+    'TB' => 'ТБ',
+    'Backup archive not found: \'%s\'.' => 'Архив резервной копии не найден: \'%s\'.',
+    'Failed to create temporary directory for manifest extraction.' => 'Не удалось создать временную директорию для извлечения манифеста.',
+    'Extracting manifest from \'%s\' to \'%s\'.' => 'Извлечение манифеста из \'%s\' в \'%s\'.',
+    'Manifest file not found in the archive after extraction.' => 'Файл манифеста не найден в архиве после извлечения.',
+    'Manifest extracted and parsed successfully.' => 'Манифест успешно извлечен и разобран.',
+    'Error reading manifest from archive: %s' => 'Ошибка чтения манифеста из архива: %s',
+    'Cleaning up temporary manifest directory: %s' => 'Очистка временной директории манифеста: %s',
+    'Restore Confirmation' => 'Подтверждение восстановления',
+    'WARNING!' => 'ВНИМАНИЕ!',
+    'You are about to restore your site from backup' => 'Вы собираетесь восстановить ваш сайт из резервной копии',
+    'This action <strong>will overwrite all current files and database</strong> on your server.' => 'Это действие <strong>перезапишет все текущие файлы и базу данных</strong> на вашем сервере.',
+    'It <strong>cannot be undone</strong>. Ensure you have backed up the current state of your site if necessary.' => 'Это <strong>нельзя отменить</strong>. Убедитесь, что вы сделали резервную копию текущего состояния вашего сайта, если это необходимо.',
+    'Backup Details:' => 'Детали резервной копии:',
+    'Filename:' => 'Имя файла:',
+    'Cockpit Version:' => 'Версия Cockpit:',
+    'Creation Date:' => 'Дата создания:',
+    'DB Type:' => 'Тип БД:',
+    'DB Name (MongoDB):' => 'Имя БД (MongoDB):',
+    'DB DSN:' => 'DSN БД:',
+    'may contain sensitive data' => 'может содержать конфиденциальные данные',
+    'Path to Cockpit CMS installation (where index.php is):' => 'Путь к установке Cockpit CMS (где находится index.php):',
+    'Path to Mongolite data folder (e.g., /cockpit/storage/data):' => 'Путь к папке данных Mongolite (например, /cockpit/storage/data):',
+    'Start Restoration' => 'Начать восстановление',
+    'Cancel' => 'Отмена',
+    'Restoration Complete' => 'Восстановление завершено',
+    'Restoration Log:' => 'Журнал восстановления:',
+    'Start Over' => 'Начать сначала',
+    'PHP Phar extension is not enabled. It is required for backup/restore operations.' => 'Расширение PHP Phar не включено. Оно необходимо для операций резервного копирования/восстановления.',
+    'shell_exec function is disabled. MongoDB restoration will not be possible.' => 'Функция shell_exec отключена. Восстановление MongoDB будет невозможно.',
+    '\'mongorestore\' utility not found in PATH. MongoDB restoration will not be possible.' => 'Утилита \'mongorestore\' не найдена в PATH. Восстановление MongoDB будет невозможно.',
+    '\'mongodump\' utility not found in PATH. MongoDB backup/restore might face issues.' => 'Утилита \'mongodump\' не найдена в PATH. Резервное копирование/восстановление MongoDB может столкнуться с проблемами.',
+    "No backup files (.tar.gz) found in '%s'. Please place a backup file in this directory." => "Файлы резервных копий (.tar.gz) не найдены в '%s'. Пожалуйста, поместите файл резервной копии в эту директорию.",
+    'Invalid backup filename specified.' => 'Указано неверное имя файла резервной копии.',
+    'Internal Error: Chosen backup data could not be resolved, despite backups being found.' => 'Внутренняя ошибка: Выбранные данные резервной копии не удалось разрешить, несмотря на то, что резервные копии были найдены.',
+    "Security Error: Resolved backup file '%s' is not within the expected backup directory '%s'." => "Ошибка безопасности: Разрешенный файл резервной копии '%s' не находится в ожидаемой директории резервных копий '%s'.",
+    "Resolved backup file '%s' does not exist or is not a file. This indicates a filesystem issue or incorrect path resolving." => "Разрешенный файл резервной копии '%s' не существует или не является файлом. Это указывает на проблему файловой системы или неверное разрешение пути.",
+    'Cockpit CMS installation path cannot be empty.' => 'Путь установки Cockpit CMS не может быть пустым.',
+    "Invalid or unsafe Cockpit CMS installation path: '%s'. Path must be absolute and within the script's directory '%s'. Check for traversal attempts or non-existent parent directories." => "Неверный или небезопасный путь установки Cockpit CMS: '%s'. Путь должен быть абсолютным и находиться в директории скрипта '%s'. Проверьте попытки обхода или несуществующие родительские директории.",
+    'Session data for backup manifest not found. Please restart the restore process from the beginning.' => 'Данные сессии для манифеста резервной копии не найдены. Пожалуйста, начните процесс восстановления с начала.',
+    "Invalid or unsafe Mongolite data path: '%s'. Path must be absolute and within the Cockpit CMS installation path '%s'. Check for traversal attempts or non-existent parent directories." => "Неверный или небезопасный путь к данным Mongolite: '%s'. Путь должен быть абсолютным и находиться в пути установки Cockpit CMS '%s'. Проверьте попытки обхода или несуществующие родительские директории.",
+    '--- Starting restoration process ---' => '--- Начало процесса восстановления ---',
+    'Selected backup: %s' => 'Выбранная резервная копия: %s',
+    'Backup source path: %s' => 'Исходный путь резервной копии: %s',
+    'Cockpit CMS installation path: %s' => 'Путь установки Cockpit CMS: %s',
+    'Mongolite data path: %s' => 'Путь к данным Mongolite: %s',
+    'Extracting backup to temporary directory: %s' => 'Извлечение резервной копии во временную директорию: %s',
+    'Failed to create temporary extraction directory "%s".' => 'Не удалось создать временную директорию для извлечения "%s".',
+    'Backup extracted successfully.' => 'Резервная копия успешно извлечена.',
+    'Error extracting backup: %s' => 'Ошибка извлечения резервной копии: %s',
+    'Backup manifest loaded from backup file.' => 'Манифест резервной копии загружен из файла.',
+    '--- Restoring Files ---' => '--- Восстановление файлов ---',
+    'Removing existing Cockpit CMS installation at: %s' => 'Удаление существующей установки Cockpit CMS по адресу: %s',
+    'Skipping deletion of restore.php itself: %s' => 'Пропускается удаление самого restore.php: %s',
+    'Restoring Cockpit CMS files to: %s' => 'Восстановление файлов Cockpit CMS в: %s',
+    'Warning: Cockpit CMS files directory not found in backup (expected: %s). Skipping Cockpit file restoration.' => 'Предупреждение: Директория файлов Cockpit CMS не найдена в резервной копии (ожидалось: %s). Пропускается восстановление файлов Cockpit.',
+    'Restoring project root files to: %s' => 'Восстановление файлов корня проекта в: %s',
+    'Removing existing item \'%s\' before restore.' => 'Удаление существующего элемента \'%s\' перед восстановлением.',
+    'File restoration complete.' => 'Восстановление файлов завершено.',
+    '--- Restoring Database ---' => '--- Восстановление базы данных ---',
+    'Mongolite database restoration is implicitly handled by "Core" files restoration. No separate database dump restore needed.' => 'Восстановление базы данных Mongolite неявно обрабатывается при восстановлении файлов "Ядра". Отдельное восстановление дампа базы данных не требуется.',
+    'Warning: Failed to ensure Mongolite data directory exists at \'%s\'.' => 'Предупреждение: Не удалось убедиться в существовании директории данных Mongolite по адресу \'%s\'.',
+    'Error: shell_exec function is disabled. MongoDB restoration not possible.' => 'Ошибка: Функция shell_exec отключена. Восстановление MongoDB будет невозможно.',
+    "Error: 'mongorestore' utility not found. MongoDB restoration not possible." => "Ошибка: Утилита 'mongorestore' не найдена. Восстановление MongoDB будет невозможно.",
+    "MongoDB archive file not found in backup at '%s'. Skipping database restoration." => "Ошибка: Архивный файл MongoDB не найден в резервной копии по адресу '%s'. Пропускается восстановление базы данных.",
+    'Database DSN or name not found in manifest. Cannot restore MongoDB.' => 'Ошибка: DSN или имя базы данных не найдены в манифесте. Невозможно восстановить MongoDB.',
+    'Restoring MongoDB database.' => 'Восстановление базы данных MongoDB.',
+    '  Database DSN: %s' => '  DSN базы данных: %s',
+    '  Database Name: %s' => '  Имя базы данных: %s',
+    '  Archive: %s' => '  Архив: %s',
+    'Executing command: %s' => 'Выполнение команды: %s',
+    'MongoDB restoration output:\n%s' => 'Вывод восстановления MongoDB:\n%s',
+    'Error: MongoDB restoration failed. Check the output above and ensure mongorestore utility is installed and accessible.' => 'Ошибка: Восстановление MongoDB завершилось сбоем. Проверьте вывод выше и убедитесь, что утилита mongorestore установлена и доступна.',
+    'MongoDB database restored.' => 'База данных MongoDB восстановлена.',
+    'Warning: Unsupported database type \'%s\' found in manifest. Skipping database restoration.' => 'Предупреждение: Неподдерживаемый тип базы данных \'%s\' найден в манифесте. Пропускается восстановление базы данных.',
+    '--- Cleanup ---' => '--- Очистка ---',
+    'Removing temporary extraction directory: %s' => 'Удаление временной директории извлечения: %s',
+    'Clearing Cockpit CMS cache at \'%s\'...' => 'Очистка кэша Cockpit CMS по адресу \'%s\'...',
+    'Warning: Failed to recreate Cockpit CMS cache directory: \'%s\'.' => 'Предупреждение: Не удалось воссоздать директорию кэша Cockpit CMS: \'%s\'.',
+    'Cockpit CMS cache cleared.' => 'Кэш Cockpit CMS очищен.',
+    '--- Restoration Complete ---' => '--- Восстановление завершено ---',
+    '--- Starting post-restoration cleanup ---' => '--- Начало очистки после восстановления ---',
+    'Final cleanup: removing temporary extraction directory: %s' => 'Окончательная очистка: удаление временной директории извлечения: %s',
+    'CRITICAL ERROR: %s' => 'КРИТИЧЕСКАЯ ОШИБКА: %s',
+    'Restoration failed: %s' => 'Восстановление завершилось сбоем: %s',
+    'Site restored successfully!' => 'Сайт успешно восстановлен!',
+    'An unexpected error occurred during page setup or no action was taken. This might indicate that no backup was found or a critical error prevented rendering.' => 'Произошла непредвиденная ошибка при настройке страницы или не было предпринято никаких действий. Это может указывать на то, что резервная копия не найдена или критическая ошибка предотвратила рендеринг.',
+    'Unknown error' => 'Неизвестная ошибка',
+    'Invalid Cockpit CMS installation path: \'%s\'. Path is not resolvable.' => 'Неверный путь установки Cockpit CMS: \'%s\'. Путь неразрешим.',
+    'Internal Error: Script directory path \'%s\' is not resolvable.' => 'Внутренняя ошибка: Путь к директории скрипта \'%s\' неразрешим.',
+    'Invalid Mongolite data path: \'%s\'. Path is not resolvable.' => 'Неверный путь к данным Mongolite: \'%s\'. Путь неразрешим.',
+    'Cockpit CMS installation path \'%s\' does not exist yet. Will attempt to create it.' => 'Путь установки Cockpit CMS \'%s\' еще не существует. Будет предпринята попытка его создания.',
+    'Mongolite data path \'%s\' does not exist yet. Will attempt to create it.' => 'Путь к данным Mongolite \'%s\' еще не существует. Будет предпринята попытка его создания.',
+    'Invalid or unsafe Cockpit CMS installation path: \'%s\'. Path must be absolute and within the script\'s directory \'%s\'. Check for traversal attempts or non-existent parent directories.' => 'Неверный или небезопасный путь установки Cockpit CMS: \'%s\'. Путь должен быть абсолютным и находиться в директории скрипта \'%s\'. Проверьте попытки обхода или несуществующие родительские директории.',
+    'Invalid or unsafe Mongolite data path: \'%s\'. Path must be absolute and within the Cockpit CMS installation path \'%s\'. Check for traversal attempts or non-existent parent directories.' => 'Неверный или небезопасный путь к данным Mongolite: \'%s\'. Путь должен быть абсолютным и находиться в пути установки Cockpit CMS \'%s\'. Проверьте попытки обхода или несуществующие родительские директории.',
+    'or' => 'или',
+    'Setting appropriate file permissions...' => 'Установка соответствующих прав доступа к файлам...',
+    'Failed to set permissions for %s. PHP Error: %s' => 'Не удалось установить права для %s. Ошибка PHP: %s',
+    'Permissions set for %s.' => 'Права установлены для %s.',
+    'Permissions set for all restored files and directories.' => 'Права установлены для всех восстановленных файлов и директорий.',
+    'Warning: Path not found for permission setting: %s. Skipping.' => 'Предупреждение: Путь не найден для установки прав: %s. Пропускается.',
+    'Warning: Skipping inaccessible item for permission setting: %s.' => 'Предупреждение: Пропускается недоступный элемент для установки прав: %s.',
+    'Failed to set permissions for directory %s. PHP Error: %s' => 'Не удалось установить права для директории %s. Ошибка PHP: %s',
+    'Failed to set permissions for file %s. PHP Error: %s' => 'Не удалось установить права для файла %s. Ошибка PHP: %s',
+    'Failed to set permissions for root directory %s. PHP Error: %s' => 'Не удалось установить права для корневой директории %s. Ошибка PHP: %s',
+    'Error setting permissions for %s: %s' => 'Ошибка установки прав для %s: %s',
+    'Error: Failed to create Cockpit CMS installation directory "%s".' => 'Ошибка: Не удалось создать директорию установки Cockpit CMS "%s".',
+    'Error: Failed to create directory "%s" for project files.' => 'Ошибка: Не удалось создать директорию "%s" для файлов проекта.',
+    'Restoring project file/directory: %s to %s' => 'Восстановление файла/директории проекта: %s в %s',
+    'Error: Failed to create config directory "%s".' => 'Ошибка: Не удалось создать директорию конфигурации "%s".',
+    'Attempting to delete backup file: %s' => 'Попытка удаления файла резервной копии: %s',
+    'Backup file %s deleted successfully.' => 'Файл резервной копии %s успешно удален.',
+    'Warning: Failed to delete backup file %s. Error: %s' => 'Предупреждение: Не удалось удалить файл резервной копии %s. Ошибка: %s',
+    'Attempting to delete restore script: %s' => 'Попытка удаления скрипта восстановления: %s',
+    'Restore script %s deleted successfully. Redirecting to Cockpit admin...' => 'Скрипт восстановления %s успешно удален. Перенаправление на страницу администрирования Cockpit...',
+    'CRITICAL WARNING: Failed to delete restore script %s. Error: %s. You MUST delete this file manually!' => 'КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ: Не удалось удалить скрипт восстановления %s. Ошибка: %s. Вы ДОЛЖНЫ удалить этот файл вручную!',
+    'Failed to delete restore script %s. You MUST delete this file manually!' => 'Не удалось удалить скрипт восстановления %s. Вы ДОЛЖНЫ удалить этот файл вручную!',
+    'Restoration Failed' => 'Восстановление завершилось сбоем',
+    'Be sure to delete the script "restore.php" from the server after the recovery is completed.' => 'Обязательно удалите скрипт "restore.php" с сервера после завершения восстановления.',
+    'Finish' => 'Завершить',
+    'Are you sure you want to delete the backup file and this restore script? This action cannot be undone!' => 'Вы уверены, что хотите удалить файл резервной копии и этот скрипт восстановления? Это действие необратимо!',
+    'Yes, Delete All' => 'Да, удалить все',
+    'No, Cancel' => 'Нет, отмена',
 ];
 $GLOBALS['CURRENT_LANG'] = 'en';
 
@@ -214,8 +214,8 @@ function recursiveDelete($path): bool
         accumulateMessage(loc('Attempting to delete directory: %s', [$path]), 'info');
         try {
             $items = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
-                    RecursiveIteratorIterator::CHILD_FIRST
+                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST
             );
             foreach ($items as $item) {
                 if ($item->isDir()) {
@@ -270,8 +270,8 @@ function recursiveCopy($source, $dest): void
             accumulateMessage(loc('Directory created: %s', [$dest]), 'info');
         }
         $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
+            new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($iterator as $item) {
             $path = $dest . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
@@ -305,10 +305,10 @@ function scanForBackups($directory): array
     foreach ($files as $file) {
         if ($file->isFile() && preg_match('/\.tar\.gz$/', $file->getFilename())) {
             $backups[] = [
-                    'path' => $file->getPathname(),
-                    'filename' => $file->getFilename(),
-                    'mtime' => $file->getMTime(),
-                    'size' => $file->getSize(),
+                'path' => $file->getPathname(),
+                'filename' => $file->getFilename(),
+                'mtime' => $file->getMTime(),
+                'size' => $file->getSize(),
             ];
         }
     }
@@ -588,10 +588,10 @@ function renderConfirmRestore($backupFilename, $manifest, $warnings = []): bool|
         <br><?= loc('It <strong>cannot be undone</strong>. Ensure you have backed up the current state of your site if necessary.') ?>
     </div>
     <?php if (!empty($warnings)): ?>
-        <?php foreach ($warnings as $warn): ?>
-            <div class="message warning"><?= htmlspecialchars($warn) ?></div>
-        <?php endforeach; ?>
-    <?php endif; ?>
+    <?php foreach ($warnings as $warn): ?>
+        <div class="message warning"><?= htmlspecialchars($warn) ?></div>
+    <?php endforeach; ?>
+<?php endif; ?>
     <h3><?= loc('Backup Details:') ?></h3>
     <ul>
         <li><strong><?= loc('Filename:') ?></strong> <?= htmlspecialchars($backupFilename) ?></li>
@@ -605,7 +605,7 @@ function renderConfirmRestore($backupFilename, $manifest, $warnings = []): bool|
             <strong><?= loc('DB Name (MongoDB):') ?></strong> <?= htmlspecialchars($manifest['database']['db_name'] ?? 'N/A') ?>
         </li>
         <li><strong><?= loc('DB DSN:') ?></strong> <code><?= htmlspecialchars($displayDsn) ?></code> <span
-                    style="font-size:0.8em;color:#888;">(<?= loc('may contain sensitive data') ?>)</span></li>
+                style="font-size:0.8em;color:#888;">(<?= loc('may contain sensitive data') ?>)</span></li>
     </ul>
     <form method="POST" action="?state=perform_restore&backup=<?= urlencode($backupFilename) ?>">
         <div class="form-group">
@@ -616,7 +616,7 @@ function renderConfirmRestore($backupFilename, $manifest, $warnings = []): bool|
         <?php if (($manifest['database']['type'] ?? null) === 'mongolite'): ?>
             <div class="form-group">
                 <label
-                        for="mongolite_data_path"><?= loc('Path to Mongolite data folder (e.g., /cockpit/storage/data):') ?></label>
+                    for="mongolite_data_path"><?= loc('Path to Mongolite data folder (e.g., /cockpit/storage/data):') ?></label>
                 <input type="text" id="mongolite_data_path" name="mongolite_data_path"
                        value="<?= htmlspecialchars($defaultMongoliteDataPath) ?>"
                        required>
@@ -635,11 +635,11 @@ function renderFinalStatus($message, $type = 'success', $outputContent = '', $ba
     <h1><?= loc('Restoration Complete') ?></h1>
     <div class="message <?= htmlspecialchars($type) ?>"><?= nl2br(htmlspecialchars($message)) ?></div>
     <?php if ($outputContent): ?>
-        <h2><?= loc('Restoration Log:') ?></h2>
-        <div class="output-box" id="restore-output">
-            <?= $outputContent ?>
-        </div>
-    <?php endif; ?>
+    <h2><?= loc('Restoration Log:') ?></h2>
+    <div class="output-box" id="restore-output">
+        <?= $outputContent ?>
+    </div>
+<?php endif; ?>
     <div class="warning">
         <strong><?= loc('Be sure to delete the script "restore.php" from the server after the recovery is completed.') ?></strong>
     </div>
@@ -700,8 +700,8 @@ function setFullPermissions(string $path, int $dirPermissions = 0755, int $fileP
             return;
         }
         $items = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($items as $item) {
             $currentPath = $item->getRealPath();
@@ -909,8 +909,8 @@ try {
             accumulateMessage(loc('Removing existing Cockpit CMS installation at: %s', [$inputCockpitRootPath]), 'info');
             if (normalizePath($inputCockpitRootPath) === normalizePath($realScriptDir)) {
                 $cockpitItemsIterator = new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($inputCockpitRootPath, RecursiveDirectoryIterator::SKIP_DOTS),
-                        RecursiveIteratorIterator::CHILD_FIRST
+                    new RecursiveDirectoryIterator($inputCockpitRootPath, RecursiveDirectoryIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::CHILD_FIRST
                 );
                 foreach ($cockpitItemsIterator as $item) {
                     if (realpath($item->getPathname()) !== realpath(__FILE__)) {
@@ -981,13 +981,28 @@ try {
                 accumulateMessage(loc('  Database Name: %s', [$dbName]), 'info');
                 accumulateMessage(loc('  Archive: %s', [$dbArchiveFile]), 'info');
                 $command = sprintf(
-                        'mongorestore --uri="%s" --db="%s" --archive="%s" --drop',
-                        escapeshellarg($dbDsn),
-                        escapeshellarg($dbName),
-                        escapeshellarg($dbArchiveFile)
+                    'mongorestore --uri="%s" --db="%s" --archive="%s" --drop',
+                    escapeshellarg($dbDsn),
+                    escapeshellarg($dbName),
+                    escapeshellarg($dbArchiveFile)
                 );
                 accumulateMessage(loc('Executing command: %s', [$command]), 'info');
                 $output = shell_exec($command . ' 2>&1');
+                $systemEncoding = 'UTF-8';
+                if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                    $chcpOutput = @shell_exec('chcp 2>&1');
+                    if (preg_match('/Active code page:\s*(\d+)/', $chcpOutput, $matches)) {
+                        $codePage = $matches[1];
+                        if ($codePage === '866') {
+                            $systemEncoding = 'CP866';
+                        } elseif ($codePage === '1251') {
+                            $systemEncoding = 'CP1251';
+                        }
+                    } else {
+                        $systemEncoding = 'CP866';
+                    }
+                }
+                $output = mb_convert_encoding($output, 'UTF-8', $systemEncoding);
                 accumulateMessage(loc("MongoDB restoration output:\n%s", [$output]), 'info');
                 if (str_contains($output, 'Failed:') || str_contains($output, 'error:')) {
                     throw new RuntimeException(loc('Error: MongoDB restoration failed. Check the output above and ensure mongorestore utility is installed and accessible.'));

@@ -4,177 +4,375 @@ namespace Backup\Helper;
 
 use Lime\Helper;
 use PharData;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use FilesystemIterator;
 
 class BackupManager extends Helper
 {
-    public function __construct($app)
+    public function createBackup(string $backupFile, array $settings): bool
     {
-        parent::__construct($app);
-        if (!class_exists('PharData')) {
-            throw new \Exception(t('PHP Phar extension is not enabled. It is required for backup/restore operations.'));
-        }
-    }
+        $projectRoot = dirname($this->app->path('#root:'));
+        $cockpitRoot = $this->app->path('#root:');
+        $backupDir = dirname($backupFile);
+        $activePaths = array_filter($settings['paths'], static fn($path) => $path['active']);
 
-    public function removeRecursive(string $path): bool
-    {
-        $nativePath = str_replace('/', DIRECTORY_SEPARATOR, $path);
-        if (!file_exists($nativePath)) {
-            return true;
+        if (empty($activePaths)) {
+            throw new \Exception(t('No parts selected for inclusion in the backup.'));
         }
 
-        if (is_file($nativePath)) {
-            if (!@unlink($nativePath)) {
-                $error = error_get_last();
-                throw new \Exception(sprintf(t('Failed to delete file "%s". PHP Error: %s'), $nativePath, $error['message'] ?? 'Unknown error'));
-            }
-            return true;
-        }
+        $backupTempDir = $this->createTempDir();
+        $tempSourceDir = $this->normalizePath($backupTempDir . DIRECTORY_SEPARATOR . 'source', false);
+        $copiedPaths = [];
 
-        if (is_dir($nativePath)) {
-            $items = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($nativePath, \RecursiveDirectoryIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::CHILD_FIRST
+        try {
+            $this->createBackupManifest($tempSourceDir);
+            $exclusions = $this->prepareExclusions(
+                $projectRoot,
+                $backupDir,
+                $settings['exclusions'],
+                $backupTempDir
             );
-            foreach ($items as $item) {
-                if ($item->isDir()) {
-                    if (!@rmdir($item->getRealPath())) {
-                        $error = error_get_last();
-                        throw new \Exception(sprintf(t('Failed to delete subdirectory "%s". PHP Error: %s'), $item->getRealPath(), $error['message'] ?? 'Unknown error'));
-                    }
-                } else {
-                    if (!@unlink($item->getRealPath())) {
-                        $error = error_get_last();
-                        throw new \Exception(sprintf(t('Failed to delete file "%s". PHP Error: %s'), $item->getRealPath(), $error['message'] ?? 'Unknown error'));
-                    }
-                }
+
+            foreach ($activePaths as $part) {
+                $this->copyBackupPartToTemp(
+                    $tempSourceDir,
+                    $part,
+                    $projectRoot,
+                    $cockpitRoot,
+                    $exclusions,
+                    $copiedPaths,
+                    $backupTempDir
+                );
             }
-            if (!@rmdir($nativePath)) {
-                $error = error_get_last();
-                throw new \Exception(sprintf(t('Failed to delete directory "%s". PHP Error: %s'), $nativePath, $error['message'] ?? 'Unknown error'));
-            }
+
+            $this->createTarGzArchive($backupFile, $tempSourceDir);
+
             return true;
+        } catch (\Exception $e) {
+            throw $e;
+        } finally {
+            $this->app->helper('fs')->delete($backupTempDir);
         }
-        throw new \Exception(sprintf(t('Unknown file system item type at path: %s'), $nativePath));
     }
 
-    public function prepareExclusions($projectRoot, $backupDir, $customExclusions = [], ?string $currentBackupTempDir = null)
+    public function restoreBackup(string $filename, string $backupDir): bool
     {
         $cockpitRoot = $this->app->path('#root:');
-        $cockpitStoragePath = rtrim(str_replace('\\', '/', $this->app->path('#storage:')), '/');
-        $cockpitTmpPath = rtrim(str_replace('\\', '/', $this->app->path('#tmp:')), '/');
-        $cockpitStorageDataPath = $cockpitStoragePath . '/data';
+        $projectRoot = $_SERVER['DOCUMENT_ROOT'];
+        $archivePath = $this->normalizePath($backupDir . DIRECTORY_SEPARATOR . basename($filename), false);
+        $tempExtractDir = $this->createTempDir();
 
+        try {
+            $extractedSourceDir = $this->extractArchive($archivePath, $tempExtractDir);
+            $manifest = $this->readBackupManifest($extractedSourceDir);
+            $dbType = $manifest['database']['type'] ?? null;
+            $dbDsn = $manifest['database']['dsn'] ?? null;
+            $dbName = $manifest['database']['db_name'] ?? null;
+            $dbDumpRelativePath = $manifest['paths']['database_dump_relative_path'] ?? 'database_dump';
+            $extractedCockpitRoot = $this->normalizePath($extractedSourceDir . DIRECTORY_SEPARATOR . 'cockpit', false);
+            $extractedProjectRootFiles = $this->normalizePath($extractedSourceDir, false);
+            $this->restoreCockpitFiles($extractedCockpitRoot, $this->normalizePath($cockpitRoot, false));
+            $this->restoreProjectRootFiles($extractedProjectRootFiles, $projectRoot, $cockpitRoot, $dbDumpRelativePath);
+            $extractedDbDumpPath = $this->normalizePath($extractedSourceDir . DIRECTORY_SEPARATOR . $dbDumpRelativePath, false);
+
+            if (is_dir($extractedDbDumpPath)) {
+                if ($dbType === 'mongodb') {
+                    if (empty($dbDsn) || empty($dbName)) {
+                        throw new \Exception(t('Database DSN or name not found in manifest. Cannot restore MongoDB.'));
+                    }
+
+                    $dbArchiveFile = $extractedDbDumpPath . DIRECTORY_SEPARATOR . 'db.archive';
+                    $this->restoreMongoDB($dbArchiveFile, $dbDsn, $dbName);
+                } else if ($dbType !== 'mongolite') {
+                    throw new \Exception(sprintf(t('Unsupported database type in manifest for separate restore: %s'), $dbType));
+                }
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            throw new \Exception(sprintf(t('Failed to restore backup: %s'), $e->getMessage()));
+        } finally {
+            if ($tempExtractDir && is_dir($tempExtractDir)) {
+                $this->app->helper('fs')->delete($tempExtractDir);
+            }
+
+            $this->app->helper('system')->flushCache();
+        }
+    }
+
+    public function normalizePath(string $path, bool $trailingSlash = true): string
+    {
+        $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+        if ($trailingSlash) {
+            return rtrim($normalizedPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        }
+
+        return rtrim($normalizedPath, DIRECTORY_SEPARATOR);
+    }
+
+    public function getMongoToolBinary(string $toolName, ?string $configuredPath = null): ?string
+    {
+        if (!function_exists('shell_exec')) {
+            throw new \Exception(t('shell_exec function is disabled. MongoDB operations for %s are not possible.', $toolName));
+        }
+
+        if ($configuredPath) {
+            $normalizedToolPath = $this->normalizePath($configuredPath, false);
+
+            if (file_exists($normalizedToolPath) && is_executable($normalizedToolPath)) {
+                return '"' . $normalizedToolPath . '"';
+            }
+        }
+
+        $systemEncoding = 'UTF-8';
+
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $chcpOutput = @shell_exec('chcp 2>&1');
+
+            if (preg_match('/Active code page:\s*(\d+)/', $chcpOutput, $matches)) {
+                $codePage = $matches[1];
+                if ($codePage === '866') {
+                    $systemEncoding = 'CP866';
+                } elseif ($codePage === '1251') {
+                    $systemEncoding = 'CP1251';
+                }
+            } else {
+                $systemEncoding = 'CP866';
+            }
+        }
+
+        $rawPathOutput = shell_exec('where ' . $toolName . ' 2>&1') ?: shell_exec('which ' . $toolName . ' 2>&1');
+
+        if ($rawPathOutput === null) {
+            return null;
+        }
+
+        $pathOutput = mb_convert_encoding($rawPathOutput, 'UTF-8', $systemEncoding);
+
+        if (
+            str_contains(strtolower($pathOutput), 'not found') ||
+            str_contains(strtolower($pathOutput), 'error') ||
+            str_contains(strtolower($pathOutput), 'could not find')
+        ) {
+            return null;
+        }
+
+        $foundPaths = array_filter(array_map('trim', explode("\n", $pathOutput)));
+
+        foreach ($foundPaths as $foundPath) {
+            $normalizedFoundPath = $this->normalizePath($foundPath, false);
+
+            if (file_exists($normalizedFoundPath) && is_executable($normalizedFoundPath)) {
+                return '"' . $normalizedFoundPath . '"';
+            }
+        }
+
+        return null;
+    }
+
+    protected function createTempDir(): string
+    {
+        $baseTempPath = $this->normalizePath($this->app->path('#tmp:'), false);
+        $tempDir = $baseTempPath . DIRECTORY_SEPARATOR . uniqid('cockpit_backup_', true);
+
+        if (!$this->app->helper('fs')->mkdir($tempDir)) {
+            throw new \Exception(sprintf(t('Failed to create temporary backup directory: %s'), $tempDir));
+        }
+
+        $tempSourceDir = $tempDir . DIRECTORY_SEPARATOR . 'source';
+
+        if (!$this->app->helper('fs')->mkdir($tempSourceDir)) {
+            $this->app->helper('fs')->delete($tempDir);
+            throw new \Exception(sprintf(t('Failed to create temporary source subdirectory: %s'), $tempSourceDir));
+        }
+
+        return $tempDir;
+    }
+
+    protected function prepareExclusions($projectRoot, $backupDir, $customExclusions = [], ?string $currentBackupTempDir = null): array
+    {
+        $cockpitRoot = $this->app->path('#root:');
+        $cockpitStoragePath = $this->normalizePath($this->app->path('#storage:'), false);
+        $cockpitTmpPath = $this->normalizePath($this->app->path('#tmp:'), false);
         $standardExclusions = [
             $cockpitTmpPath,
-            $cockpitStoragePath . '/cache',
-            $backupDir,
+            $cockpitStoragePath . DIRECTORY_SEPARATOR . 'cache',
+            $this->normalizePath($backupDir, false),
         ];
 
         if ($this->app->dataStorage->type === 'mongodb') {
-            $standardExclusions[] = $cockpitStorageDataPath;
+            $standardExclusions[] = $cockpitStoragePath . DIRECTORY_SEPARATOR . 'data';
         }
 
         $finalExclusions = array_unique(array_merge($standardExclusions, $customExclusions));
         $absoluteExclusions = [];
 
         foreach ($finalExclusions as $exclusion) {
-            $sanitized = trim(str_replace('\\', '/', $exclusion), " \t\n\r\0\x0B/");
-            if (empty($sanitized)) {
-                continue;
-            }
+            $resolvedPath = $this->resolveExclusionPath($exclusion, $projectRoot, $cockpitRoot, $cockpitStoragePath);
 
-            $exclusionPath = '';
-            if ($this->app->isAbsolutePath($sanitized)) {
-                $exclusionPath = $sanitized;
-            } elseif (str_starts_with($sanitized, 'cockpit/')) {
-                $relativeToCockpit = preg_replace('/^cockpit\//i', '', $sanitized);
-                $exclusionPath = rtrim(str_replace('\\', '/', $cockpitRoot), '/') . '/' . $relativeToCockpit;
-            } elseif (str_starts_with($sanitized, 'storage/')) {
-                $relativeToStorage = preg_replace('/^storage\//i', '', $sanitized);
-                $exclusionPath = rtrim(str_replace('\\', '/', $cockpitStoragePath), '/') . '/' . $relativeToStorage;
-            } else {
-                $exclusionPath = rtrim(str_replace('\\', '/', $projectRoot), '/') . '/' . $sanitized;
-            }
-
-            if ($exclusionPath) {
-                $absoluteExclusions[] = strtolower(rtrim($exclusionPath, '/'));
+            if ($resolvedPath) {
+                $absoluteExclusions[] = strtolower($resolvedPath);
             }
         }
 
         if ($currentBackupTempDir) {
-            $absoluteExclusions[] = strtolower(rtrim(str_replace('\\', '/', $currentBackupTempDir), '/'));
+            $absoluteExclusions[] = strtolower($this->normalizePath($currentBackupTempDir, false));
         }
 
-        $absoluteExclusions = array_filter($absoluteExclusions);
-        return array_unique($absoluteExclusions);
+        return array_unique(array_filter($absoluteExclusions));
     }
 
-    public function createTarGzArchive($backupFile, $sourceDir)
+    protected function copyRecursive(string $sourcePath, string $destinationPath, array $exclusions, array &$copiedPaths, ?string $currentBackupTempDir = null): bool
     {
-        $nativeBackupFile = str_replace('/', DIRECTORY_SEPARATOR, $backupFile);
-        $nativeSourceDir = str_replace('/', DIRECTORY_SEPARATOR, $sourceDir);
+        $realSourcePath = realpath($sourcePath);
+
+        if (!$realSourcePath) {
+            throw new \Exception(sprintf(t('Source path not found or not accessible for recursive copy: %s'), $sourcePath));
+        }
+
+        $sourcePath = $realSourcePath;
+
+        if (empty($destinationPath)) {
+            throw new \Exception(sprintf(t('Internal error: Destination path for copy operation cannot be empty. Source: %s'), $sourcePath));
+        }
+
+        if ($this->isPathExcluded($sourcePath, $exclusions, $currentBackupTempDir)) {
+            if (!in_array($sourcePath, $copiedPaths, true)) {
+                $copiedPaths[] = $sourcePath;
+            }
+
+            return true;
+        }
+
+        if (in_array($sourcePath, $copiedPaths, true)) {
+            return true;
+        }
+
+        $copiedPaths[] = $sourcePath;
+        $nativeDestinationPath = $this->normalizePath($destinationPath, false);
+
+        if (is_dir($sourcePath)) {
+            if (!$this->app->helper('fs')->mkdir($nativeDestinationPath)) {
+                throw new \Exception(sprintf(t('Failed to create destination directory "%s". Source: %s'), $nativeDestinationPath, $sourcePath));
+            }
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourcePath, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $file) {
+                $filePath = $file->getRealPath();
+
+                if (!$filePath) {
+                    continue;
+                }
+
+                if ($this->isPathExcluded($filePath, $exclusions, $currentBackupTempDir)) {
+                    if (!in_array($filePath, $copiedPaths, true)) {
+                        $copiedPaths[] = $filePath;
+                    }
+
+                    continue;
+                }
+
+                if (in_array($filePath, $copiedPaths, true)) {
+                    continue;
+                }
+
+                $copiedPaths[] = $filePath;
+                $relativePath = substr($filePath, strlen($sourcePath) + 1);
+                $fileDestination = $this->normalizePath($destinationPath . DIRECTORY_SEPARATOR . $relativePath, false);
+
+                if (empty($fileDestination)) {
+                    throw new \Exception(sprintf(t('Internal error: File destination path cannot be empty for file: %s'), $filePath));
+                }
+
+                if ($file->isDir()) {
+                    if (!$this->app->helper('fs')->mkdir($fileDestination)) {
+                        throw new \Exception(sprintf(t('Failed to create sub-directory "%s". Source: %s'), $fileDestination, $filePath));
+                    }
+                } elseif ($file->isFile()) {
+                    if (!$this->copyRecursiveSafe($filePath, $fileDestination, false)) {
+                        throw new \Exception(sprintf(t('Failed to copy file: %s'), $filePath));
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        if (is_file($sourcePath)) {
+            if (!$this->copyRecursiveSafe($sourcePath, $nativeDestinationPath, false)) {
+                throw new \Exception(sprintf(t('Failed to copy single file: %s'), $sourcePath));
+            }
+
+            return true;
+        }
+
+        throw new \Exception(sprintf(t('Unsupported source type for copyRecursive: %s'), $sourcePath));
+    }
+
+    protected function createTarGzArchive(string $backupFile, string $sourceDir): bool
+    {
+        $nativeBackupFile = $this->normalizePath($backupFile, false);
+        $nativeSourceDir = $this->normalizePath($sourceDir, false);
 
         if (!is_dir($nativeSourceDir)) {
             throw new \Exception(sprintf(t('Source directory for archiving not found: %s'), $nativeSourceDir));
         }
 
-        $isEmpty = true;
-        $iterator = new \FilesystemIterator($nativeSourceDir, \FilesystemIterator::SKIP_DOTS);
-        foreach ($iterator as $file) {
-            if ($file->getFilename() !== 'backup_manifest.json') {
-                $isEmpty = false;
-                break;
-            }
-        }
-
-        if ($isEmpty) {
-            throw new \Exception(sprintf(t('No files found to archive in source directory: %s'), $nativeSourceDir));
-        }
+        $tmpTarFile = $nativeBackupFile . '.tmp.tar';
+        $tmpTarGzFile = $nativeBackupFile . '.tmp.tar.gz';
 
         try {
-            $phar = new PharData($nativeBackupFile . '.tmp.tar');
+            $phar = new PharData($tmpTarFile);
             $phar->buildFromIterator(
-                new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator($nativeSourceDir, \FilesystemIterator::SKIP_DOTS)
+                new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($nativeSourceDir, FilesystemIterator::SKIP_DOTS)
                 ),
                 $nativeSourceDir
             );
             $phar->compress(\Phar::GZ);
 
-            if (file_exists($nativeBackupFile . '.tmp.tar')) {
-                unlink($nativeBackupFile . '.tmp.tar');
+            if (file_exists($tmpTarFile)) {
+                unlink($tmpTarFile);
             }
-            rename($nativeBackupFile . '.tmp.tar.gz', $nativeBackupFile);
+
+            rename($tmpTarGzFile, $nativeBackupFile);
 
             if (!file_exists($nativeBackupFile)) {
                 throw new \Exception(sprintf(t('Failed to create tar.gz archive: %s'), $nativeBackupFile));
             }
-            return true;
 
+            return true;
         } catch (\Exception $e) {
-            if (file_exists($nativeBackupFile . '.tmp.tar')) {
-                unlink($nativeBackupFile . '.tmp.tar');
+            if (file_exists($tmpTarFile)) {
+                unlink($tmpTarFile);
             }
-            if (file_exists($nativeBackupFile . '.tmp.tar.gz')) {
-                unlink($nativeBackupFile . '.tmp.tar.gz');
+
+            if (file_exists($tmpTarGzFile)) {
+                unlink($tmpTarGzFile);
             }
+
             throw new \Exception(sprintf(t('Failed to create tar.gz archive: %s'), $e->getMessage()));
         }
     }
 
-    public function createBackupManifest($tempSourceDir)
+    protected function createBackupManifest(string $tempSourceDir): array
     {
-        $defaultDsn = 'mongolite://' . rtrim($this->app->path('#storage:'), '/') . '/data';
+        $defaultDsn = 'mongolite://' . $this->normalizePath($this->app->path('#storage:'), false) . DIRECTORY_SEPARATOR . 'data';
         $dsn = (string)$this->app->retrieve('database/server', $this->app->retrieve('datastore/server', $defaultDsn));
         $type = $this->app->dataStorage->type;
-
         $manifest = [
             'version' => '1.0',
             'timestamp' => time(),
             'cockpit_version' => APP_VERSION,
             'database' => [
                 'type' => $type,
-                'dsn' => $type === 'mongodb' ? $dsn : null,
+                'dsn' => null,
                 'db_name' => '',
             ],
             'paths' => [
@@ -189,259 +387,44 @@ class BackupManager extends Helper
             $dbConfig = $this->app->retrieve('database');
             $dbOptions = is_array($dbConfig) ? ($dbConfig['options'] ?? []) : [];
             $dbName = trim($dbOptions['db'] ?? 'cockpitdb', '/');
+            $manifest['database']['dsn'] = $dsn;
             $manifest['database']['db_name'] = $dbName;
         }
 
-        $manifestFilePath = $tempSourceDir . '/backup_manifest.json';
-        $nativeManifestFilePath = str_replace('/', DIRECTORY_SEPARATOR, $manifestFilePath);
+        $manifestFilePath = $this->normalizePath($tempSourceDir . DIRECTORY_SEPARATOR . 'backup_manifest.json', false);
 
-        if (!file_put_contents($nativeManifestFilePath, json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES))) {
-            throw new \Exception(sprintf(t('Failed to write backup manifest file to %s'), $nativeManifestFilePath));
+        if (!file_put_contents($manifestFilePath, json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES))) {
+            throw new \Exception(sprintf(t('Failed to write backup manifest file to %s'), $manifestFilePath));
         }
 
         return $manifest;
     }
 
-    public function copyBackupPartToTemp(
-        $tempSourceDir,
-        $part,
-        $projectRoot,
-        $cockpitRoot,
-        $exclusions,
-        &$addedPaths,
+    protected function copyBackupPartToTemp(
+        string  $tempSourceDir,
+        array   $part,
+        string  $projectRoot,
+        string  $cockpitRoot,
+        array   $exclusions,
+        array   &$copiedPaths,
         ?string $currentBackupTempDir = null
-    )
+    ): void
     {
         if ($part['code'] === 'Database') {
-            if ($this->app->dataStorage->type === 'mongodb') {
-                $dbBackupPath = $this->backupDatabase($tempSourceDir);
-                if ($dbBackupPath) {
-                    $nativeDbBackupPath = str_replace('/', DIRECTORY_SEPARATOR, $dbBackupPath);
-                    if (!file_exists($nativeDbBackupPath) && !is_dir($nativeDbBackupPath)) {
-                        throw new \Exception(sprintf(t('Database dump was not created successfully. Path: %s'), $nativeDbBackupPath));
-                    }
-                }
-            } else {
-                $this->app->trigger('backup.info', ['message' => t('Mongolite database is included in the "Core" backup. No separate database dump is created.')]);
-            }
-            return $addedPaths;
-        }
-
-        if ($part['code'] === 'Core') {
-            $sourcePath = $cockpitRoot;
-            $targetInArchive = 'cockpit';
+            $this->backupMongoDB($tempSourceDir);
+        } elseif ($part['code'] === 'Core') {
+            $this->copyCorePart($tempSourceDir, $cockpitRoot, $exclusions, $copiedPaths, $currentBackupTempDir);
         } elseif ($part['code'] === 'Site') {
-            $sourcePath = $projectRoot;
-            $targetInArchive = '';
+            $this->copySitePart($tempSourceDir, $projectRoot, $cockpitRoot, $exclusions, $copiedPaths, $currentBackupTempDir);
         } else {
             throw new \Exception(sprintf(t('Unsupported backup part code: %s'), $part['code']));
         }
-
-        $destinationPathInTemp = rtrim($tempSourceDir, '/');
-        if (!empty($targetInArchive)) {
-            $destinationPathInTemp .= '/' . $targetInArchive;
-        }
-
-        if ($part['code'] === 'Site') {
-            $nativeSourcePath = str_replace('/', DIRECTORY_SEPARATOR, $sourcePath);
-            if (!is_dir($nativeSourcePath)) {
-                throw new \Exception(sprintf(t('Source directory for "Site" backup part not found: %s'), $nativeSourcePath));
-            }
-            $iterator = new \DirectoryIterator($nativeSourcePath);
-            foreach ($iterator as $item) {
-                if ($item->isDot()) {
-                    continue;
-                }
-                if ($item->getBasename() === basename($cockpitRoot)) {
-                    continue;
-                }
-                $destForRecursive = rtrim($destinationPathInTemp, '/') . '/' . $item->getBasename();
-                if (!$this->copyRecursive(
-                    $item->getRealPath(),
-                    $destForRecursive,
-                    $exclusions,
-                    $addedPaths,
-                    $currentBackupTempDir
-                )) {
-                    throw new \Exception(sprintf(t('Failed to copy Site part file: %s'), $item->getRealPath()));
-                }
-            }
-        } else {
-            $destForRecursive = $destinationPathInTemp;
-            if (!$this->copyRecursive(
-                $sourcePath,
-                $destForRecursive,
-                $exclusions,
-                $addedPaths,
-                $currentBackupTempDir
-            )) {
-                throw new \Exception(sprintf(t('Failed to copy Core part files. Source: %s'), $sourcePath));
-            }
-        }
-        return $addedPaths;
-    }
-
-    public function backupDatabase($backupTempDir)
-    {
-        if ($this->app->dataStorage->type === 'mongolite') {
-            throw new \Exception(t('Mongolite database is included in the "Core" backup and does not require a separate dump.'));
-        }
-        if ($this->app->dataStorage->type !== 'mongodb') {
-            throw new \Exception(sprintf(t('Unsupported database type for separate backup: %s'), $this->app->dataStorage->type));
-        }
-
-        $defaultDsn = 'mongolite://' . rtrim($this->app->path('#storage:'), '/') . '/data';
-        $dsn = (string)$this->app->retrieve('database/server', $this->app->retrieve('datastore/server', $defaultDsn));
-        $dbDumpDir = $backupTempDir . '/database_dump';
-        $nativeDbDumpDir = str_replace('/', DIRECTORY_SEPARATOR, $dbDumpDir);
-
-        if (!$this->app->helper('fs')->mkdir($nativeDbDumpDir)) {
-            throw new \Exception(sprintf(t('Failed to create database dump directory: %s'), $nativeDbDumpDir));
-        }
-
-        if ($this->app->dataStorage->type === 'mongodb') {
-            if (!function_exists('shell_exec')) {
-                throw new \Exception(t('shell_exec function is disabled. MongoDB backup is not possible.'));
-            }
-
-            $dbConfig = $this->app->retrieve('database');
-            $dbOptions = is_array($dbConfig) ? ($dbConfig['options'] ?? []) : [];
-            $dbName = trim($dbOptions['db'] ?? 'cockpitdb', '/');
-            $dumpFile = $dbDumpDir . '/db.archive';
-            $nativeDumpFile = str_replace('/', DIRECTORY_SEPARATOR, $dumpFile);
-
-            $command = sprintf(
-                'mongodump --uri="%s" --db="%s" --archive="%s" --quiet',
-                escapeshellarg($dsn),
-                escapeshellarg($dbName),
-                escapeshellarg($nativeDumpFile)
-            );
-
-            $output = shell_exec($command . ' 2>&1');
-
-            if (!file_exists($nativeDumpFile) || filesize($nativeDumpFile) === 0) {
-                throw new \Exception(sprintf(t('Failed to create MongoDB backup. Please ensure mongodump utility is installed and accessible. Error output: %s'), $output ?: 'No output.'));
-            }
-            return $dumpFile;
-        }
-
-        throw new \Exception(sprintf(t('Unsupported database DSN: %s'), $dsn));
-    }
-
-    public function copyRecursive($sourcePath, $destinationPath, $exclusions, &$addedPaths, ?string $currentBackupTempDir = null)
-    {
-        $realSourcePath = realpath($sourcePath);
-        if (!$realSourcePath) {
-            throw new \Exception(sprintf(t('Source path not found or not accessible for recursive copy: %s'), $sourcePath));
-        }
-        $sourcePath = $realSourcePath;
-
-        if (empty($destinationPath)) {
-            throw new \Exception(sprintf(t('Internal error: Destination path for copy operation cannot be empty. Source: %s'), $sourcePath));
-        }
-        $nativeDestinationPath = str_replace('/', DIRECTORY_SEPARATOR, $destinationPath);
-        $normalizedSourcePath = strtolower(str_replace('\\', '/', $sourcePath));
-
-        if ($currentBackupTempDir) {
-            $normalizedCurrentBackupTempDir = strtolower(rtrim(str_replace('\\', '/', $currentBackupTempDir), '/'));
-            if ($normalizedSourcePath === $normalizedCurrentBackupTempDir || str_starts_with($normalizedSourcePath, $normalizedCurrentBackupTempDir . '/')) {
-                if (!in_array($sourcePath, $addedPaths, true)) {
-                    $addedPaths[] = $sourcePath;
-                }
-                return true;
-            }
-        }
-
-        foreach ($exclusions as $ex) {
-            if ($normalizedSourcePath === $ex || str_starts_with($normalizedSourcePath, $ex . '/')) {
-                if (!in_array($sourcePath, $addedPaths, true)) {
-                    $addedPaths[] = $sourcePath;
-                }
-                return true;
-            }
-        }
-
-        if (in_array($sourcePath, $addedPaths, true)) {
-            return true;
-        }
-        $addedPaths[] = $sourcePath;
-
-        if (is_dir($sourcePath)) {
-            if (!$this->app->helper('fs')->mkdir($nativeDestinationPath)) {
-                throw new \Exception(sprintf(t('Failed to create destination directory "%s". Source: %s'), $nativeDestinationPath, $sourcePath));
-            }
-
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($sourcePath, \RecursiveDirectoryIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::SELF_FIRST
-            );
-
-            foreach ($iterator as $file) {
-                $filePath = $file->getRealPath();
-                if (!$filePath) {
-                    $this->app->trigger('backup.warning', ['message' => sprintf(t('Skipping inaccessible file or directory: %s'), $file->getPathname())]);
-                    continue;
-                }
-
-                $normalizedFilePath = strtolower(str_replace('\\', '/', $filePath));
-
-                if ($currentBackupTempDir) {
-                    if ($normalizedFilePath === $normalizedCurrentBackupTempDir || str_starts_with($normalizedFilePath, $normalizedCurrentBackupTempDir . '/')) {
-                        if (!in_array($filePath, $addedPaths, true)) {
-                            $addedPaths[] = $filePath;
-                        }
-                        continue;
-                    }
-                }
-
-                $isExcluded = false;
-                foreach ($exclusions as $ex) {
-                    if ($normalizedFilePath === $ex || str_starts_with($normalizedFilePath, $ex . '/')) {
-                        $isExcluded = true;
-                        break;
-                    }
-                }
-                if ($isExcluded) {
-                    if (!in_array($filePath, $addedPaths, true)) {
-                        $addedPaths[] = $filePath;
-                    }
-                    continue;
-                }
-
-                $relativePath = substr($filePath, strlen($sourcePath) + 1);
-                $fileDestination = rtrim($destinationPath, '/') . '/' . $relativePath;
-
-                if (empty($fileDestination)) {
-                    throw new \Exception(sprintf(t('Internal error: File destination path cannot be empty for file: %s'), $filePath));
-                }
-                $nativeFileDestination = str_replace('/', DIRECTORY_SEPARATOR, $fileDestination);
-
-                if ($file->isDir()) {
-                    if (!$this->app->helper('fs')->mkdir($nativeFileDestination)) {
-                        throw new \Exception(sprintf(t('Failed to create sub-directory "%s". Source: %s'), $nativeFileDestination, $filePath));
-                    }
-                } elseif ($file->isFile()) {
-                    if (!$this->copyRecursiveSafe($filePath, $nativeFileDestination, false)) {
-                        throw new \Exception(sprintf(t('Failed to copy file: %s'), $filePath));
-                    }
-                }
-            }
-            return true;
-        }
-
-        if (is_file($sourcePath)) {
-            if (!$this->copyRecursiveSafe($sourcePath, $nativeDestinationPath, false)) {
-                throw new \Exception(sprintf(t('Failed to copy single file: %s'), $sourcePath));
-            }
-            return true;
-        }
-        throw new \Exception(sprintf(t('Unsupported source type for copyRecursive: %s'), $sourcePath));
     }
 
     protected function copyRecursiveSafe(string $source, string $destination, bool $recursive = true): bool
     {
-        $nativeSource = str_replace('/', DIRECTORY_SEPARATOR, $source);
-        $nativeDestination = str_replace('/', DIRECTORY_SEPARATOR, $destination);
+        $nativeSource = $this->normalizePath($source, false);
+        $nativeDestination = $this->normalizePath($destination, false);
 
         if (!file_exists($nativeSource)) {
             throw new \Exception(sprintf(t('Source path not found for copy operation: %s'), $nativeSource));
@@ -449,13 +432,16 @@ class BackupManager extends Helper
 
         if (is_file($nativeSource)) {
             $destDir = dirname($nativeDestination);
+
             if (!is_dir($destDir) && !$this->app->helper('fs')->mkdir($destDir)) {
                 throw new \Exception(sprintf(t('Failed to create destination directory "%s" for file "%s".'), $destDir, $nativeDestination));
             }
+
             if (!@\copy($nativeSource, $nativeDestination)) {
                 $error = error_get_last();
                 throw new \Exception(sprintf(t('Failed to copy file from "%s" to "%s". PHP Error: %s'), $nativeSource, $nativeDestination, $error['message'] ?? 'Unknown error'));
             }
+
             return true;
         }
 
@@ -464,9 +450,9 @@ class BackupManager extends Helper
                 throw new \Exception(sprintf(t('Failed to create destination directory "%s" for source directory "%s".'), $nativeDestination, $nativeSource));
             }
 
-            $items = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($nativeSource, \RecursiveDirectoryIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::SELF_FIRST
+            $items = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($nativeSource, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
             );
 
             foreach ($items as $item) {
@@ -485,135 +471,385 @@ class BackupManager extends Helper
                     }
                 }
             }
+
             return true;
         }
+
         throw new \Exception(sprintf(t('Unsupported source type for copyRecursiveSafe: %s'), $nativeSource));
     }
 
-    public function restoreTarGzBackup($filename, $backupDir)
+    protected function isPathExcluded(string $filePath, array $exclusions, ?string $currentBackupTempDir = null): bool
     {
-        $cockpitRoot = $this->app->path('#root:');
-        $projectRoot = dirname($cockpitRoot);
-        $file = $backupDir . '/' . basename($filename);
-        $nativeFile = str_replace('/', DIRECTORY_SEPARATOR, $file);
+        $normalizedFilePath = strtolower($this->normalizePath($filePath, false));
 
-        if (!file_exists($nativeFile)) {
-            throw new \Exception(sprintf(t('The backup file was not found: %s'), $file));
+        if ($currentBackupTempDir) {
+            $normalizedCurrentBackupTempDir = strtolower($this->normalizePath($currentBackupTempDir, false));
+
+            if ($normalizedFilePath === $normalizedCurrentBackupTempDir || str_starts_with($normalizedFilePath, $normalizedCurrentBackupTempDir . DIRECTORY_SEPARATOR)) {
+                return true;
+            }
         }
 
-        $tempExtractDir = $this->createTempDir();
-        $nativeTempExtractDir = str_replace('/', DIRECTORY_SEPARATOR, $tempExtractDir);
+        foreach ($exclusions as $ex) {
+            $normalizedExclusion = strtolower($this->normalizePath($ex, false));
+
+            if ($normalizedFilePath === $normalizedExclusion || str_starts_with($normalizedFilePath, $normalizedExclusion . DIRECTORY_SEPARATOR)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function resolveExclusionPath(string $exclusion, string $projectRoot, string $cockpitRoot, string $cockpitStoragePath): ?string
+    {
+        $sanitized = trim(str_replace(['\\', '/'], '/', $exclusion), " \t\n\r\0\x0B/");
+
+        if (empty($sanitized)) {
+            return null;
+        }
+
+        if ($this->app->isAbsolutePath($sanitized)) {
+            return $this->normalizePath($sanitized, false);
+        }
+
+        if (str_starts_with($sanitized, 'cockpit/')) {
+            $relativeToCockpit = preg_replace('/^cockpit\//i', '', $sanitized);
+            return $this->normalizePath($cockpitRoot . '/' . $relativeToCockpit, false);
+        }
+
+        if (str_starts_with($sanitized, 'storage/')) {
+            $relativeToStorage = preg_replace('/^storage\//i', '', $sanitized);
+            return $this->normalizePath($cockpitStoragePath . '/' . $relativeToStorage, false);
+        }
+
+        return $this->normalizePath($projectRoot . '/' . $sanitized, false);
+    }
+
+    protected function extractArchive(string $archivePath, string $destinationDir): string
+    {
+        $nativeFile = $this->normalizePath($archivePath, false);
+        $nativeTempExtractDir = $this->normalizePath($destinationDir, false);
         $nativeTempSourceDir = $nativeTempExtractDir . DIRECTORY_SEPARATOR . 'source';
 
-        try {
-            $phar = new PharData($nativeFile);
-            $phar->extractTo($nativeTempSourceDir, null, true);
+        if (!file_exists($nativeFile)) {
+            throw new \Exception(sprintf(t('The backup file was not found: %s'), $archivePath));
+        }
 
-            $manifestFilePath = $nativeTempSourceDir . DIRECTORY_SEPARATOR . 'backup_manifest.json';
-            if (!file_exists($manifestFilePath)) {
-                throw new \Exception(sprintf(t('Backup manifest file not found in the archive. Path: %s'), $manifestFilePath));
-            }
+        $phar = new PharData($nativeFile);
+        $phar->extractTo($nativeTempSourceDir, null, true);
 
-            $manifest = json_decode(file_get_contents($manifestFilePath), true, 512, JSON_THROW_ON_ERROR);
+        return $nativeTempSourceDir;
+    }
 
-            $dbType = $manifest['database']['type'] ?? null;
-            $dbDsn = $manifest['database']['dsn'] ?? null;
-            $dbName = $manifest['database']['db_name'] ?? null;
-            $dbDumpRelativePath = $manifest['paths']['database_dump_relative_path'] ?? 'database_dump';
+    protected function readBackupManifest(string $extractedSourceDir): array
+    {
+        $manifestFilePath = $this->normalizePath($extractedSourceDir . DIRECTORY_SEPARATOR . 'backup_manifest.json', false);
 
-            $extractedCockpitRoot = $nativeTempSourceDir . DIRECTORY_SEPARATOR . 'cockpit';
-            $extractedProjectRootFiles = $nativeTempSourceDir;
+        if (!file_exists($manifestFilePath)) {
+            throw new \Exception(sprintf(t('Backup manifest file not found in the archive. Path: %s'), $manifestFilePath));
+        }
 
-            $nativeCockpitRoot = str_replace('/', DIRECTORY_SEPARATOR, $cockpitRoot);
-            $nativeProjectRoot = str_replace('/', DIRECTORY_SEPARATOR, $projectRoot);
+        return json_decode(file_get_contents($manifestFilePath), true, 512, JSON_THROW_ON_ERROR);
+    }
 
-            if (is_dir($extractedCockpitRoot)) {
-                if ($this->app->helper('fs')->remove($nativeCockpitRoot)) {
-                    if (!$this->copyRecursiveSafe($extractedCockpitRoot, $nativeCockpitRoot)) {
-                        throw new \Exception(t('Failed to restore Cockpit files.'));
-                    }
-                } else {
-                    throw new \Exception(t('Failed to clear current Cockpit installation before restore.'));
-                }
-            }
+    protected function getMongoDBConnectionDetails(): array
+    {
+        $dbConfig = $this->app->retrieve('database');
+        $dsn = $dbConfig['server'] ?? null;
 
-            $items = new \DirectoryIterator($extractedProjectRootFiles);
-            foreach ($items as $item) {
-                if ($item->isDot() || $item->getBasename() === 'cockpit' || $item->getBasename() === $dbDumpRelativePath || $item->getBasename() === 'backup_manifest.json') {
-                    continue;
-                }
-                $targetPath = $nativeProjectRoot . DIRECTORY_SEPARATOR . $item->getBasename();
-                if ($this->app->helper('fs')->remove($targetPath)) {
-                    if (!$this->copyRecursiveSafe($item->getRealPath(), $targetPath)) {
-                        throw new \Exception(sprintf(t('Failed to restore project file: %s'), $item->getBasename()));
-                    }
-                } else {
-                    throw new \Exception(sprintf(t('Failed to clear current project item "%s" before restore.'), $item->getBasename()));
-                }
-            }
+        if (empty($dsn)) {
+            $dsn = $this->app->retrieve('datastore/server', 'mongodb://localhost:27017');
+        }
 
-            $extractedDbDumpPath = $nativeTempSourceDir . DIRECTORY_SEPARATOR . $dbDumpRelativePath;
+        $dbOptions = is_array($dbConfig) ? ($dbConfig['options'] ?? []) : [];
+        $dbName = trim($dbOptions['db'] ?? 'cockpitdb', '/');
 
-            if ($dbType === 'mongodb') {
-                if (!function_exists('shell_exec')) {
-                    throw new \Exception(t('shell_exec function is disabled. MongoDB restore is not possible.'));
-                }
+        if (empty($dsn) || empty($dbName)) {
+            throw new \Exception(t('MongoDB DSN or database name not configured for backup.'));
+        }
 
-                $dbArchiveFile = $extractedDbDumpPath . DIRECTORY_SEPARATOR . 'db.archive';
-                $nativeDbArchiveFile = str_replace('/', DIRECTORY_SEPARATOR, $dbArchiveFile);
+        return ['dsn' => $dsn, 'db_name' => $dbName];
+    }
 
-                if (!file_exists($nativeDbArchiveFile)) {
-                    throw new \Exception(t('MongoDB archive file not found in backup for restoration.'));
-                }
-                if (empty($dbDsn) || empty($dbName)) {
-                    throw new \Exception(t('Database DSN or name not found in manifest. Cannot restore MongoDB.'));
-                }
+    protected function executeMongoDumpCommand(string $dsn, string $dbName, string $dumpFile): void
+    {
+        $settings = $this->app->module('backup')->getSettings();
+        $mongodumpPath = $this->getMongoToolBinary('mongodump', $settings['mongodumpPath'] ?? null);
 
-                $command = sprintf(
-                    'mongorestore --uri="%s" --db="%s" --archive="%s" --drop --quiet',
-                    escapeshellarg($dbDsn),
-                    escapeshellarg($dbName),
-                    escapeshellarg($nativeDbArchiveFile)
-                );
+        if (!$mongodumpPath) {
+            throw new \Exception(t('MongoDB dump utility is not available or configured.'));
+        }
 
-                $output = shell_exec($command . ' 2>&1');
-                if (str_contains($output, 'Failed') || str_contains($output, 'error')) {
-                    throw new \Exception(sprintf(t('MongoDB restore failed. Error output: %s'), $output));
-                }
+        $command = sprintf(
+            '%s --uri="%s" --db="%s" --archive="%s" --gzip --quiet',
+            $mongodumpPath,
+            escapeshellarg($dsn),
+            escapeshellarg($dbName),
+            escapeshellarg($dumpFile)
+        );
+        $output = shell_exec($command . ' 2>&1');
 
-            } else if ($dbType === 'mongolite') {
-                $this->app->trigger('backup.info', ['message' => t('Mongolite database restoration is implicitly handled by "Core" files restoration. No separate database dump restore needed.')]);
+        if (!file_exists($dumpFile) || filesize($dumpFile) === 0) {
+            $errorMessage = t('Failed to create MongoDB backup. Please ensure mongodump utility is installed and accessible.');
+
+            if (!empty($output)) {
+                $errorMessage .= sprintf(t(' Error output: %s'), $output);
             } else {
-                $this->app->trigger('backup.warning', ['message' => sprintf(t('Unsupported database type in manifest for separate restore: %s'), $dbType)]);
+                $errorMessage .= t(' No output from mongodump command.');
             }
 
-            $this->app->helper('cache')->clear();
-            return true;
+            throw new \Exception($errorMessage);
+        }
 
-        } catch (\Exception $e) {
-            throw new \Exception(sprintf(t('Failed to restore backup: %s'), $e->getMessage()));
-        } finally {
-            $this->app->helper('fs')->remove($nativeTempExtractDir);
+        if (str_contains($output, 'Failed') || str_contains($output, 'error')) {
+            throw new \Exception(sprintf(t('MongoDB backup failed. Error output: %s'), $output));
         }
     }
 
-    public function createTempDir()
+    protected function backupMongoDB(string $backupTempDir): void
     {
-        $baseTempPath = rtrim(str_replace('\\', '/', $this->app->path('#tmp:')), '/');
-        $tempDir = $baseTempPath . '/' . uniqid('cockpit_backup_', true);
-        $nativeTempDir = str_replace('/', DIRECTORY_SEPARATOR, $tempDir);
-
-        if (!$this->app->helper('fs')->mkdir($nativeTempDir)) {
-            throw new \Exception(sprintf(t('Failed to create temporary backup directory: %s'), $nativeTempDir));
+        if ($this->app->dataStorage->type === 'mongolite') {
+            return;
         }
 
-        $tempSourceDir = $tempDir . '/source';
-        $nativeTempSourceDir = str_replace('/', DIRECTORY_SEPARATOR, $tempSourceDir);
-
-        if (!$this->app->helper('fs')->mkdir($nativeTempSourceDir)) {
-            throw new \Exception(sprintf(t('Failed to create temporary source subdirectory: %s'), $nativeTempSourceDir));
+        if ($this->app->dataStorage->type !== 'mongodb') {
+            throw new \Exception(sprintf(t('Unsupported database type for separate backup: %s'), $this->app->dataStorage->type));
         }
 
-        return $tempDir;
+        $dbDetails = $this->getMongoDBConnectionDetails();
+        $dbDumpDir = $this->normalizePath($backupTempDir . DIRECTORY_SEPARATOR . 'database_dump', false);
+
+        if (!$this->app->helper('fs')->mkdir($dbDumpDir)) {
+            throw new \Exception(sprintf(t('Failed to create database dump directory: %s'), $dbDumpDir));
+        }
+
+        $dumpFile = $dbDumpDir . DIRECTORY_SEPARATOR . 'db.archive';
+        $this->executeMongoDumpCommand($dbDetails['dsn'], $dbDetails['db_name'], $dumpFile);
+    }
+
+    protected function copyCorePart(string $tempSourceDir, string $cockpitRoot, array $exclusions, array &$copiedPaths, ?string $currentBackupTempDir = null): void
+    {
+        $sourcePath = $cockpitRoot;
+        $destinationPathInTemp = $this->normalizePath($tempSourceDir . DIRECTORY_SEPARATOR . 'cockpit', false);
+
+        if (!$this->copyRecursive(
+            $sourcePath,
+            $destinationPathInTemp,
+            $exclusions,
+            $copiedPaths,
+            $currentBackupTempDir
+        )) {
+            throw new \Exception(sprintf(t('Failed to copy Core part files. Source: %s'), $sourcePath));
+        }
+    }
+
+    protected function copySitePart(string $tempSourceDir, string $projectRoot, string $cockpitRoot, array $exclusions, array &$copiedPaths, ?string $currentBackupTempDir = null): void
+    {
+        $sourcePath = $this->normalizePath($projectRoot, false);
+        $destinationPathInTemp = $this->normalizePath($tempSourceDir, false);
+
+        if (!is_dir($sourcePath)) {
+            throw new \Exception(sprintf(t('Source directory for "Site" backup part not found: %s'), $sourcePath));
+        }
+
+        $iterator = new \DirectoryIterator($sourcePath);
+
+        foreach ($iterator as $item) {
+            if ($item->isDot()) {
+                continue;
+            }
+
+            if ($item->getBasename() === basename($cockpitRoot)) {
+                if (!in_array($item->getRealPath(), $copiedPaths, true)) {
+                    $copiedPaths[] = $item->getRealPath();
+                }
+
+                continue;
+            }
+
+            $destForRecursive = $this->normalizePath($destinationPathInTemp . DIRECTORY_SEPARATOR . $item->getBasename(), false);
+
+            if (!$this->copyRecursive(
+                $item->getRealPath(),
+                $destForRecursive,
+                $exclusions,
+                $copiedPaths,
+                $currentBackupTempDir
+            )) {
+                throw new \Exception(sprintf(t('Failed to copy Site part file: %s'), $item->getRealPath()));
+            }
+        }
+    }
+
+    protected function restoreCockpitFiles(string $extractedCockpitRoot, string $currentCockpitRoot): void
+    {
+        if (!is_dir($extractedCockpitRoot)) {
+            return;
+        }
+
+        $nativeCurrentCockpitRoot = $this->normalizePath($currentCockpitRoot, false);
+        $nativeExtractedCockpitRoot = $this->normalizePath($extractedCockpitRoot, false);
+        $runningBackupModulePath = $this->normalizePath($this->app->path('backup:'), false);
+        $currentUploadsDir = $this->normalizePath($nativeCurrentCockpitRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads', false);
+        $extractedUploadsDir = $this->normalizePath($nativeExtractedCockpitRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads', false);
+
+        if (is_dir($extractedUploadsDir) || is_dir($currentUploadsDir)) {
+            if (is_dir($currentUploadsDir)) {
+                try {
+                    $this->app->helper('fs')->delete($currentUploadsDir);
+                } catch (\Exception $e) {
+                    throw new \Exception(sprintf(t('Failed to clear current uploads directory "%s" before restore: %s'), $currentUploadsDir, $e->getMessage()));
+                }
+            }
+
+            if (is_dir($extractedUploadsDir)) {
+                if (!$this->app->helper('fs')->copy($extractedUploadsDir, $currentUploadsDir, false)) {
+                    throw new \Exception(sprintf(t('Failed to copy uploads content from backup to "%s".'), $currentUploadsDir));
+                }
+            }
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($nativeExtractedCockpitRoot, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $itemPath = $item->getRealPath();
+
+            if (!$itemPath) {
+                continue;
+            }
+
+            $relativePath = substr($itemPath, strlen($nativeExtractedCockpitRoot) + 1);
+            $targetPath = $this->normalizePath($nativeCurrentCockpitRoot . DIRECTORY_SEPARATOR . $relativePath, false);
+
+            if (str_starts_with($targetPath, $currentUploadsDir)) {
+                continue;
+            }
+
+            if (str_starts_with($targetPath, $runningBackupModulePath)) {
+                continue;
+            }
+
+            if ($item->isDir()) {
+                if (!is_dir($targetPath)) {
+                    if (!$this->app->helper('fs')->mkdir($targetPath)) {
+                        throw new \Exception(sprintf(t('Failed to create directory "%s" during Cockpit restore.'), $targetPath));
+                    }
+                }
+            } elseif ($item->isFile()) {
+                if (!@\copy($itemPath, $targetPath)) {
+                    $error = error_get_last();
+                    throw new \Exception(sprintf(t('Failed to copy Cockpit core file from "%s" to "%s". PHP Error: %s'), $itemPath, $targetPath, $error['message'] ?? 'Unknown error'));
+                }
+            }
+        }
+    }
+
+    protected function restoreProjectRootFiles(string $extractedProjectRootFiles, string $currentProjectRoot, string $cockpitRoot, string $dbDumpRelativePath): void
+    {
+        $nativeCockpitRoot = $this->normalizePath($cockpitRoot, false);
+        $nativeProjectRoot = $this->normalizePath($currentProjectRoot, false);
+
+        if ($nativeCockpitRoot === $nativeProjectRoot) {
+            return;
+        }
+
+        $currentProjectItems = new \DirectoryIterator($nativeProjectRoot);
+
+        foreach ($currentProjectItems as $item) {
+            if ($item->isDot() || $item->getRealPath() === $nativeCockpitRoot) {
+                continue;
+            }
+
+            try {
+                $this->app->helper('fs')->delete($item->getRealPath());
+            } catch (\Exception $e) {
+                throw new \Exception(sprintf(t('Failed to clear current project item "%s" before restore.'), $item->getBasename()) . ' ' . $e->getMessage());
+            }
+        }
+
+        $items = new \DirectoryIterator($extractedProjectRootFiles);
+
+        foreach ($items as $item) {
+            if ($item->isDot() || $item->getBasename() === 'cockpit' || $item->getBasename() === $dbDumpRelativePath || $item->getBasename() === 'backup_manifest.json') {
+                continue;
+            }
+
+            $targetPath = $nativeProjectRoot . DIRECTORY_SEPARATOR . $item->getBasename();
+
+            if (!$this->copyRecursiveSafe($item->getRealPath(), $targetPath)) {
+                throw new \Exception(sprintf(t('Failed to restore project file: %s'), $item->getBasename()));
+            }
+        }
+    }
+
+    protected function restoreMongoDB(string $dbArchiveFile, string $dbDsn, string $dbName): void
+    {
+        $settings = $this->app->module('backup')->getSettings();
+        $mongoshPath = $this->getMongoToolBinary('mongosh', $settings['mongoshPath'] ?? null);
+        if (!$mongoshPath) {
+            throw new \Exception(t('MongoDB shell utility (mongosh) is not available or configured, which is required for dropping the database before restore. Please specify the absolute path in the settings.'));
+        }
+
+        $mongorestorePath = $this->getMongoToolBinary('mongorestore', $settings['mongorestorePath'] ?? null);
+
+        if (!$mongorestorePath) {
+            throw new \Exception(t('MongoDB restore utilities (mongorestore) is not available or configured. Skipping database restoration.'));
+        }
+
+        $nativeDbArchiveFile = $this->normalizePath($dbArchiveFile, false);
+
+        if (!file_exists($nativeDbArchiveFile)) {
+            throw new \Exception(t('MongoDB archive file not found in backup for restoration.'));
+        }
+
+        $connectionUri = rtrim($dbDsn, '/') . '/' . $dbName;
+
+        $descriptorspec = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w']
+        ];
+
+        $dropDbCommandString = sprintf(
+            '%s %s --eval "db.dropDatabase()" --quiet',
+            $mongoshPath,
+            escapeshellarg($connectionUri)
+        );
+
+        $process = proc_open($dropDbCommandString, $descriptorspec, $pipes);
+
+        if (!is_resource($process)) {
+            throw new \Exception(t('Failed to open process for mongosh command.'));
+        }
+
+        fclose($pipes[0]);
+        $dropDbOutput = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $dropDbErrorOutput = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        $returnValue = proc_close($process);
+        $fullOutput = $dropDbOutput . $dropDbErrorOutput;
+
+        if ($returnValue !== 0 || str_contains($fullOutput, 'Failed') || str_contains($fullOutput, 'error')) {
+            throw new \Exception(sprintf(t('MongoDB database drop failed before restore. Output: %s'), $fullOutput));
+        }
+
+        $command = sprintf(
+            '%s --uri="%s" --archive="%s" --nsInclude="%s.*" --gzip --quiet',
+            $mongorestorePath,
+            escapeshellarg($dbDsn),
+            escapeshellarg($nativeDbArchiveFile),
+            escapeshellarg($dbName)
+        );
+        $output = shell_exec($command . ' 2>&1');
+
+        if (str_contains($output, 'Failed') || str_contains($output, 'error')) {
+            throw new \Exception(sprintf(t('MongoDB restore failed. Error output: %s'), $output));
+        }
     }
 }

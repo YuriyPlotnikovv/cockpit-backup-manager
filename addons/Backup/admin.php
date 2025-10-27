@@ -2,26 +2,20 @@
 
 use Backup\Controller\Backup;
 
-$this->helper('acl')->addPermissions([
-    'backup' => [
-        'manage' => t('Backup management'),
-    ],
-]);
+$this->on('app.permissions.collect', function ($permissions) {
+    $permissions['Backup'] = [
+        'backup/manage' => 'Manage backups',
+        'backup/restore' => 'Restore from backup',
+    ];
+});
 
-if ($this->helper('acl')->hasPermission('backup/manage')) {
+$this->bindClass(Backup::class, '/backup');
 
-    $this->bindClass(Backup::class, '/backup');
-
-    $this->bind('/backup', function () {
-        return $this->invoke(Backup::class, 'index');
-    });
-
-    $this->on('app.settings.collect', function ($settings) {
-        $settings['Extensions'][] = [
-            'icon' => 'backup:icon.svg',
-            'route' => '/backup',
-            'label' => t('Backup'),
-            'permission' => 'backup/manage',
-        ];
-    });
-}
+$this->on('app.settings.collect', function ($settings) {
+    $settings['Addons'][] = [
+        'icon' => 'backup:icon.svg',
+        'route' => '/backup',
+        'label' => t('Backup'),
+        'permission' => 'backup/manage',
+    ];
+});

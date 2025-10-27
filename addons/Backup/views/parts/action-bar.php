@@ -5,7 +5,7 @@
                     type="button"
                     @click="createBackup"
             >
-                {{ loading ? t('Creating...') : t('Create a backup') }}
+                {{ t('Create a backup') }}
             </button>
         </kiss-container>
 
@@ -13,8 +13,9 @@
             <button class="kiss-button kiss-button-primary"
                     type="button"
                     @click="finishTask"
+                    :disabled="!state.isFinished"
             >
-                {{ state.finished ? t('Done') : t('Processing...') }}
+                {{ state.isFinished ? t('Done') : t('Processing...') }}
             </button>
         </kiss-container>
 
@@ -39,9 +40,9 @@
 
                 <button class="kiss-button kiss-button-primary"
                         type="button" @click="saveSettings"
-                        :disabled="!hasChanges"
+                        :disabled="!hasChanges || state.isSaving"
                 >
-                    {{ loading ? t('Saving...') : t('Save settings') }}
+                    {{ state.isSaving ? t('Saving...') : t('Save settings') }}
                 </button>
             </div>
         </kiss-container>
