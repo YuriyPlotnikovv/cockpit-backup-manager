@@ -2,7 +2,7 @@
 $hasRestoreAccess = $this->helper('acl')->isAllowed('backup/restore');
 ?>
 
-<tab class="kiss-margin animated fadeIn" caption="<?= t('List of backups') ?>" name="list">
+<tab class="kiss-margin kiss-margin-bottom animated fadeIn" caption="<?= t('List of backups') ?>" name="list">
     <kiss-card class="kiss-margin-large-bottom kiss-padding kiss-bgcolor-contrast"
          theme="shadowed"
          v-if="state.view === 'list' && paths.length"

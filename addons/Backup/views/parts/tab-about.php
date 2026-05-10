@@ -1,4 +1,4 @@
-<tab class="kiss-margin animated fadeIn" caption="<?= t('About') ?>" name="about">
+<tab class="kiss-margin kiss-margin-bottom animated fadeIn" caption="<?= t('About') ?>" name="about">
     <table class="kiss-table">
         <tbody>
         <tr>

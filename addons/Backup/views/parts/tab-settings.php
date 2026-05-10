@@ -1,4 +1,4 @@
-<tab class="kiss-margin animated fadeIn" caption="<?= t('Backup settings') ?>" name="settings">
+<tab class="kiss-margin kiss-margin-bottom animated fadeIn" caption="<?= t('Backup settings') ?>" name="settings">
     <div class="kiss-margin-bottom">
         <div class="kiss-flex kiss-flex-middle kiss-margin-small-bottom">
             <icon class="kiss-margin-small-right kiss-color-primary">checklist</icon>
